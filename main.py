@@ -94,4 +94,4 @@ async def question(ctx, num=1):
         print(question_obj.packet)
 
 
-bot.run('NDc1MTY3NTk5MjE1Mzc4NDk0.DkbLrw.fp-6BdSSGQmfR1vXNd43V0K8Fcg')
+bot.run(token)
