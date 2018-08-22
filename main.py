@@ -32,11 +32,20 @@ class Group:
 
 
 class Team:
-    def __init__(self, group, name, captain, members):
-        self.group = group
+    def __init__(self, server, name, captain, members):
+        # self.group = group
+        self.server = server
         self.name = name
         self.captain = captain
         self.members = members
+
+
+class Player:
+    def __init__(self, member, server, team, score=0):
+        self.member = member
+        self.server = server
+        self.team = team
+        self.score = score  # not used for any data/analysis, just per-game score
 
 
 @bot.command(name="group", pass_context=True)
@@ -46,15 +55,6 @@ async def group_(ctx, name):
         return
     groups.append(Group(name, [ctx.message.author]))
     await bot.say('New group "{0}" created! Type !join {0} to join!'.format(name))
-
-
-@bot.command(name="groups", aliases=["listgroups", "allgroups"])
-async def groups_():
-    if groups:
-        group_list = 'Current groups:\n' + ''.join(sorted(':small_blue_diamond:' + group.name + '\n' for group in groups))
-        await bot.say(group_list)
-    else:
-        await bot.say("No groups currently created!")
 
 
 @bot.command(pass_context=True)
@@ -80,34 +80,31 @@ def get_team(member):
     return None
 
 
-@bot.command(name="team", pass_context=True)
+@bot.command(name="team", pass_context=True, aliases=["maketeam", "newteam"])
 async def team_(ctx, name):
     if any(each_team.name == name for each_team in teams):
         await bot.say("That team already exists!")
         return
-    found_group = None
-    for group in groups:
-        if ctx.message.author in group.members:
-            found_group = group
+    '''found_group = get_group(ctx.message.author)
     if found_group is None:
         await bot.say("You must be in a group to create a team!")
+        return'''
+    if get_team(ctx.message.author) is not None:
+        await bot.say("You're already in a team.")
         return
-    teams.append(Team(found_group, name, ctx.message.author, [ctx.message.author]))
+    teams.append(Team(ctx.message.server, name, ctx.message.author, [ctx.message.author]))
     await bot.say('New team "{0}" created! Type !join {0} to join!'.format(name))
 
 
 @bot.command(name="teams", pass_context=True, aliases=["listteams", "allteams"])
 async def teams_(ctx):
-    if get_group(ctx.message.author) is None:
-        await bot.say("You're not in a group!")
-        return
-    teams_in_group = [team for team in teams if team.group == get_group(ctx.message.author)]
-    if teams_in_group:
-        team_list = 'Current teams in {0}:\n'.format(get_group(ctx.message.author).name) + ''.join(
-            sorted(':small_blue_diamond:' + team.name + '\n' for team in teams_in_group))
+    teams_in_server = [team for team in teams if team.server == ctx.message.server]
+    if teams_in_server:
+        team_list = 'Current teams in {0}:\n'.format(ctx.message.server) + ''.join(
+            sorted(':small_blue_diamond:' + team.name + '\n' for team in teams_in_server))
         await bot.say(team_list)
     else:
-        await bot.say("No teams have been made in this group yet!")
+        await bot.say("No teams have been made in this server yet!")
 
 
 @bot.command(pass_context=True)
@@ -119,39 +116,64 @@ async def myteam(ctx):
         await bot.say("You're not in a team.")
 
 
+@bot.command(name="captain", pass_context=True)
+async def captain_(ctx, new_captain: discord.Member=None):
+    team = get_team(ctx.message.author)
+    if team is not None:
+        if new_captain is None:
+            await bot.say("{0} is the captain of your team, {1}".format(team.captain, team.name))
+            return
+        if team.captain == ctx.message.author:
+            if new_captain in team.members:
+                team.captain = new_captain
+                await bot.say("New team captain of {0}: {1}".format(team, new_captain))
+            else:
+                await bot.say("{0} isn't in your team!".format(new_captain))
+        else:
+            await bot.say("You aren't captain of {0}".format(team.name))
+    else:
+        await bot.say("You're not in a team!")
+
+
 @bot.command(pass_context=True)
 async def join(ctx, name):
-    for group in groups:
-        if group.name == name:
-            group.members.append(ctx.message.author)
-            await bot.say("Joined the group {0}!".format(name))
-            return
     for team in teams:
         if team.name == name:
             team.members.append(ctx.message.author)
             await bot.say("Joined the team {0}!".format(name))
             return
-    await bot.say("That doesn't seem to be a team or a group!")
+    await bot.say("That doesn't seem to be a team!")
 
 
-@bot.command(pass_context=True)
+@bot.command(pass_context=True, aliases=['leaveteam'])
 async def leave(ctx, name):
-    member_group = get_group(ctx.message.author)
     member_team = get_team(ctx.message.author)
     if member_team is not None and member_team.name == name:
+        if len(member_team.members) == 1:
+            await bot.say("You're the last person in the team!\nLeaving the team has deleted it. You can always create"
+                          "a new one with !team <team name>.")
+            teams.remove(member_team)
+            return
+        if ctx.message.author == member_team.captain:
+            await bot.say(
+                "You're the captain of {0}! You should defer captainship to one of your teammates with !captain @user.\nTeam members:\n".format(
+                    member_team) + "".join([":small_blue_diamond:" + member + "\n" for member in member_team.members]))
+            return
         member_team.members.remove(ctx.message.author)
         await bot.say("Left {0}!".format(name))
         return
-    if member_group is not None and member_group.name == name:
-        if member_team is not None:
-            member_team.members.remove(ctx.message.author)
-            member_group.members.remove(ctx.message.author)
-            await bot.say("Left team {0} and group {1}!".format(member_team.name, member_group.name))
-        else:
-            member_group.members.remove(ctx.message.author)
-            await bot.say("Left group {0}!".format(member_group.name))
-        return
-    await bot.say("You're not in a group or team by that name.")
+
+    await bot.say("You're not in a team by that name.")
+
+
+@bot.command(pass_context=True)
+async def tournament(ctx):
+    await bot.say("")
+
+
+async def read_question():
+    correct = False
+    skip = False
 
 
 @bot.command(pass_context=True)
