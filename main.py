@@ -11,6 +11,7 @@ bot = commands.Bot(command_prefix=['!', '?'], description="Quiz bowl bot!")
 questionlist = packet_handling.get_questions()
 groups = []
 teams = []
+players = []
 
 
 @bot.event
@@ -43,12 +44,16 @@ class Team:
 
 
 class Player:
-    def __init__(self, member, server, team, score=0):
+    def __init__(self, member, server, score=0):
         self.member = member
         self.server = server
-        self.team = team
         self.score = score  # not used for any data/analysis, just per-game score
 
+    def __str__(self):
+        return str(self.member.name)
+
+    def fuckme(self):
+        return str(self.member.name)
 
 @bot.command(name="group", pass_context=True)
 async def group_(ctx, name):
@@ -75,17 +80,20 @@ def get_group(member):
     return None
 
 
-def get_team(member, server):
+def get_team(member: discord.Member, server):
     for team in teams:
-        if member in team.members and team.server == server:
-            return team
+        for player in team.members:
+            if member == player.member and server == player.server:
+                return team
     return None
 
 
-def get_player(member, team):
-    for player in team.members:
-        if member == player:
-            return player
+def get_player(member, server):
+    for team in teams:
+        for player in team.members:
+            if member == player.member and server == player.server:
+                return player
+
 
 def serialize_team(teamname, server):
     for team in teams:
@@ -98,14 +106,16 @@ async def team_(ctx, name):
     if any(each_team.name == name for each_team in teams):
         await bot.say("That team already exists!")
         return
-    '''found_group = get_group(ctx.message.author)
-    if found_group is None:
-        await bot.say("You must be in a group to create a team!")
-        return'''
     if get_team(ctx.message.author, ctx.message.server) is not None:
         await bot.say("You're already in a team.")
         return
-    teams.append(Team(ctx.message.server, name, ctx.message.author, [ctx.message.author]))
+    else:
+        player = Player(ctx.message.author, ctx.message.server)
+        players.append(player)
+    team = Team(ctx.message.server, name, ctx.message.author, [])
+    team.members.append(player)
+    print(player)
+    teams.append(team)
     await bot.say('New team "{0}" created! Type !join {0} to join!'.format(name))
 
 
@@ -170,7 +180,7 @@ async def leave(ctx, name):
         if ctx.message.author == member_team.captain:
             await bot.say(
                 "You're the captain of {0}! You should defer captainship to one of your teammates with !captain @user.\nTeam members:\n".format(
-                    member_team) + "".join([":small_blue_diamond:" + member + "\n" for member in member_team.members]))
+                    member_team) + "".join([":small_blue_diamond:" + str(member) + "\n" for member in member_team.members]))
             return
         member_team.members.remove(ctx.message.author)
         await bot.say("Left {0}!".format(name))
@@ -189,7 +199,7 @@ async def tournament(ctx, *, teams_in_game=None):
         await bot.say("You can't start a tournament unless you're a team captain.")
         return
     if teams_in_game is None:
-        await bot.say("Please enter the teams that will be playing in this tournament,"
+        await bot.say("Please enter the teams that will be playing in this tournament, "
                       "separated by spaces")
         msg = await bot.wait_for_message(author=ctx.message.author)
         team_names = msg.content.split(" ")
@@ -258,19 +268,20 @@ async def tournament(ctx, *, teams_in_game=None):
         else:
             bonus = False
             await bot.say("Bonus questions will not be read.")
-    players = []
+    playerlist = []
     for t in teams_in_game:
         print(t.members)
-        players += t.members
-    print(players)
+        playerlist += t.members
+    print(playerlist)
     for i in range(num_of_questions):
-        await read_question(bonus, players)
-    teams_in_game.sort(key=lambda x: x.score, reversed=True)
+        await read_question(bonus, playerlist)
+    teams_in_game.sort(reverse=True, key=lambda x: x.score)
     await bot.say("Tournament over! Final leaderboard:\n" +
-                  "".join([":small_blue_diamond:" + t.name + ": " + t.score + " points!\n" for t in teams_in_game]))
+                  "".join([":small_blue_diamond:" + t.name + ": " + str(t.score) + " points!\n" for t in teams_in_game]))
     
 
-async def read_question(bonus: bool, players):
+async def read_question(bonus: bool, playerlist):
+    print([str(player) for player in playerlist])
     correct = False
     skip = False
     neggers = []
@@ -285,7 +296,7 @@ async def read_question(bonus: bool, players):
         print(sent_question.content)
 
         def check(message):
-            return message.author in players and message.author not in neggers and "buzz" in message.content
+            return get_player(message.author, message.server) in playerlist and message.author not in neggers and "buzz" in message.content
 
         msg = None
         msg = await bot.wait_for_message(timeout=1, check=check)
@@ -320,7 +331,7 @@ async def read_question(bonus: bool, players):
                 print("correct! ratio: " + str(ratio))
                 correct = True
                 team = get_team(msg.author, msg.author.server)
-                player = get_player(msg.author, team)
+                player = get_player(msg.author, msg.author.server)
                 team.score += 20
                 player.score += 20
             else:
