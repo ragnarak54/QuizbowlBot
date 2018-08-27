@@ -5,6 +5,7 @@ import random
 from fuzzywuzzy import fuzz
 import asyncio
 import config
+import time
 from typing import List
 
 bot = commands.Bot(command_prefix=['!', '?'], description="Quiz bowl bot!")
@@ -41,6 +42,9 @@ class Team:
         self.captain = captain
         self.members = members
         self.score = score
+
+    def __str__(self):
+        return self.name
 
 
 class Player:
@@ -147,7 +151,7 @@ async def captain_(ctx, new_captain: discord.Member=None):
             await bot.say("{0} is the captain of your team, {1}".format(team.captain, team.name))
             return
         if team.captain == ctx.message.author:
-            if new_captain in team.members:
+            if get_player(new_captain, ctx.message.server) in team.members:
                 team.captain = new_captain
                 await bot.say("New team captain of {0}: {1}".format(team, new_captain))
             else:
@@ -162,18 +166,24 @@ async def captain_(ctx, new_captain: discord.Member=None):
 async def join(ctx, name):
     for team in teams:
         if team.name == name:
-            team.members.append(ctx.message.author)
-            await bot.say("Joined the team {0}!".format(name))
+            player = Player(ctx.message.author, ctx.message.server)
+            team.members.append(player)
+            await bot.say("{0} joined the team {1}!".format(ctx.message.author, name))
             return
     await bot.say("That doesn't seem to be a team!")
 
 
 @bot.command(pass_context=True, aliases=['leaveteam'])
-async def leave(ctx, name):
+async def leave(ctx, name=None):
     member_team = get_team(ctx.message.author, ctx.message.server)
-    if member_team is not None and member_team.name == name:
+    if name is None:
+        if member_team is None:
+            await bot.say("You're not in a team.")
+            return
+
+    if member_team is not None and (member_team.name == name or name is None):
         if len(member_team.members) == 1:
-            await bot.say("You're the last person in the team!\nLeaving the team has deleted it. You can always create"
+            await bot.say("You're the last person in the team!\nLeaving the team has deleted it. You can always create "
                           "a new one with !team <team name>.")
             teams.remove(member_team)
             return
@@ -182,7 +192,7 @@ async def leave(ctx, name):
                 "You're the captain of {0}! You should defer captainship to one of your teammates with !captain @user.\nTeam members:\n".format(
                     member_team) + "".join([":small_blue_diamond:" + str(member) + "\n" for member in member_team.members]))
             return
-        member_team.members.remove(ctx.message.author)
+        member_team.members.remove(get_player(ctx.message.author, ctx.message.server))
         await bot.say("Left {0}!".format(name))
         return
 
@@ -230,10 +240,10 @@ async def tournament(ctx, *, teams_in_game=None):
     msg = await bot.wait_for_message(author=ctx.message.author)
     num_of_questions = int(msg.content)
     await bot.say("Tournament starting! Your setup is as follows:\n"
-                  "Teams competing: " + "".join([":small_blue_diamond:" + t_.name + ", " for t_ in teams_in_game]) +
+                  "Teams competing: " + ", ".join([t_.name for t_ in teams_in_game]) +
                   "\nNumber of tossups: " + str(num_of_questions) +
                   "\nBonus questions: " + str(bonus) +
-                  "\nIf this is correct, type yes. If you'd like to edit something, type teams,tossups, or bonuses.")
+                  "\nIf this is correct, type yes. If you'd like to edit something, type teams, tossups, or bonuses.")
 
     def check2(message):
         return message.content in ["yes", "y", "ye", "yeet", "teams", "tossups", "bonuses"]
@@ -303,40 +313,54 @@ async def read_question(bonus: bool, playerlist):
         if msg is not None:
             await bot.say("buzz from {0}! 10 seconds to answer".format(msg.author))
             answer = await bot.wait_for_message(timeout=10, author=msg.author)
-            ratio = fuzz.ratio(answer.content.lower(), question_obj.answer.lower())
-            if ratio > 75:
-                await bot.say("correct!")
-                print("correct! ratio: " + str(ratio))
-                correct = True
-                await bot.edit_message(sent_question, question_obj.question)
-                team = get_team(msg.author, msg.author.server)
-                player = get_player(msg.author, team)
-                team.score += 20
-                player.score += 20
-                break
+            if answer is not None:
+                ratio = fuzz.ratio(answer.content.lower(), question_obj.answer.lower())
+                if ratio > 75:
+                    await bot.say("correct!")
+                    print("correct! ratio: " + str(ratio))
+                    correct = True
+                    await bot.edit_message(sent_question, question_obj.question)
+                    team = get_team(msg.author, msg.author.server)
+                    player = get_player(msg.author, msg.author.server)
+                    team.score += 20
+                    player.score += 20
+                    break
+                else:
+                    await bot.say("incorrect!")
+                    print("incorrect")
+                    msg = None
+                    sent_question = await bot.say(sent_question_content)
             else:
-                await bot.say("incorrect!")
-                print("incorrect")
-                msg = None
-                sent_question = await bot.say(sent_question_content)
+                await bot.say("Time's up!")
+                await asyncio.sleep(1)
+    wait_time = 10
     if not correct:
-        msg = None
-        msg = await bot.wait_for_message(timeout=10, check=check)
-        if msg is not None:
-            await bot.say("buzz from {0}! 10 seconds to answer".format(msg.author))
-            answer = await bot.wait_for_message(timeout=10, author=msg.author)
-            ratio = fuzz.ratio(answer.content.lower(), question_obj.answer.lower())
-            if ratio > 75:
-                await bot.say("correct!")
-                print("correct! ratio: " + str(ratio))
-                correct = True
-                team = get_team(msg.author, msg.author.server)
-                player = get_player(msg.author, msg.author.server)
-                team.score += 20
-                player.score += 20
-            else:
-                await bot.say("incorrect!")
-                print("incorrect")
+        while wait_time > 0:
+            timer = time.time()
+            msg = None
+            msg = await bot.wait_for_message(timeout=int(wait_time), check=check)
+            wait_time = time.time() - timer
+            if msg is not None:
+                await bot.say("buzz from {0}! 10 seconds to answer".format(msg.author))
+                answer = None
+                answer = await bot.wait_for_message(timeout=10, author=msg.author)
+                if answer is not None:
+                    ratio = fuzz.ratio(answer.content.lower(), question_obj.answer.lower())
+                    if ratio > 75:
+                        await bot.say("correct!")
+                        print("correct! ratio: " + str(ratio))
+                        correct = True
+                        team = get_team(msg.author, msg.author.server)
+                        player = get_player(msg.author, msg.author.server)
+                        team.score += 20
+                        player.score += 20
+                        break
+                    else:
+                        await bot.say("incorrect!")
+                        print("incorrect")
+                else:
+                    await bot.say("Time's up!")
+                    await asyncio.sleep(1)
 
         if not correct:
             await bot.say("The answer is {0}!".format(question_obj.answer))
