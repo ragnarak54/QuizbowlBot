@@ -56,7 +56,7 @@ class Player:
     def __str__(self):
         return str(self.member.name)
 
-    def fuckme(self):
+    def frickme(self):
         return str(self.member.name)
 
 @bot.command(name="group", pass_context=True)
