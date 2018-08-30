@@ -2,8 +2,7 @@ import PyPDF2
 import re
 import random
 import question
-from fuzzywuzzy import process
-from fuzzywuzzy import fuzz
+import json
 
 
 def get_questions():
@@ -36,12 +35,40 @@ def get_questions():
                 questionlist.append(question.Question(ques, answer, packet))
     return questionlist
 
-#questions = get_questions()
-#question_arr = questions[2].question.split(" ")
-#sent_question = " ".join(question_arr[:5])
-#for i in range(1, question_arr.__len__() // 5):
-    #print(sent_question + " ".join(question_arr[i*5:i*5+5]))
-    #sent_question += " " + " ".join(question_arr[i*5:i*5+5])
+
+def get_ms_qs():
+    questionlist = []
+    pdf_names = []
+    for year in range(2010, 2013):
+        for i in range(1, 11):
+            # pdf_names.append("round" + str(i) + ".txt")
+            filename = "/round" + str(i) + ".txt"
+            with open("MS/" + str(year) + filename) as f:
+                text = f.read()
+            if year == 2010:
+                packet = text.split("Round")[0].split("Tossups")[1]
+            else:
+                packet = text.split("Round")[0]
+            text = '1. '.join(re.split(r'1\.\s', text)[1:])
+            text = "1. " + text
+            text = text.split("Bonuses")[0]
+            questions = re.split(r'[0-9]+\.\s', text)[1:]
+            m = re.search(r'[0-9]+\.\s.*', text)
+            while m:
+                print(m.group())
+                q = re.split(r'[0-9]+\.\s', m.group().split("ANSWER:")[0])[1]
+                a = m.group().split("ANSWER:")[1]
+                if '[' in a:
+                    a = a.split('[')[0]
+                questionlist.append(question.Question(q, a, packet))
+                text = text.replace(m.group(), "")
+
+                m = re.search(r'[0-9]+\.\s.*', text)
+            print("Packet " + str(i) + " complete!")
+        print("year " + str(year) + " complete!")
+    return questionlist
 
 
-
+dick_list = [obj.__dict__ for obj in get_ms_qs()]
+with open('test2.json', 'w') as file:
+    json.dump(dick_list, file)
