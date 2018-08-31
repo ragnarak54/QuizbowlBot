@@ -6,10 +6,17 @@ from fuzzywuzzy import fuzz
 import asyncio
 import config
 import time
-from typing import List
+import json
+import question
 
 bot = commands.Bot(command_prefix=['!', '?'], description="Quiz bowl bot!")
-questionlist = packet_handling.get_questions()
+with open('test2.json', 'r') as f:
+    encoded_list = f.read()
+decoded = json.loads(encoded_list)
+questionlist = []
+for dict in decoded:
+    questionlist.append(question.Question(dict["question"], dict["answer"], dict["packet"]))
+print(len(questionlist))
 groups = []
 teams = []
 players = []
