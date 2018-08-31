@@ -69,6 +69,6 @@ def get_ms_qs():
     return questionlist
 
 
-dick_list = [obj.__dict__ for obj in get_ms_qs()]
-with open('test2.json', 'w') as file:
-    json.dump(dick_list, file)
+# dick_list = [obj.__dict__ for obj in get_ms_qs()]
+# with open('test2.json', 'w') as file:
+#     json.dump(dick_list, file)
