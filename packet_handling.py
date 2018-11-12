@@ -3,6 +3,7 @@ import re
 import random
 import question
 import json
+from html import unescape
 
 
 def get_questions():
@@ -36,6 +37,23 @@ def get_questions():
     return questionlist
 
 
+
+def load_category(cat):
+    """Given a category, opens the downloaded archive, serializes the relevant information about tossups, and
+    then deserializes it into a new json to be loaded up by the main program"""
+
+    questions = []
+    with open(cat + 'dl.json', encoding='utf8') as fop:
+        data = json.load(fop)
+    for tossup in data["data"]["tossups"]:
+        questions.append(question.Question(tossup["text"], unescape(tossup["answer"]), cat, tossup["tournament"]["name"],
+                                           tossup["formatted_text"], unescape(tossup["formatted_answer"])))
+
+    dict_list = [obj.__dict__ for obj in questions]
+    with open(cat + '.json', 'w', encoding='utf8') as fop:
+        json.dump(dict_list, fop)
+
+
 def get_ms_qs():
     questionlist = []
     pdf_names = []
@@ -56,19 +74,37 @@ def get_ms_qs():
             m = re.search(r'[0-9]+\.\s.*', text)
             while m:
                 print(m.group())
-                q = re.split(r'[0-9]+\.\s', m.group().split("ANSWER:")[0])[1]
-                a = m.group().split("ANSWER:")[1]
+                q = re.split(r'[0-9]+\.\s', m.group().split("ANSWER: ")[0])[1]
+                a = m.group().split("ANSWER:")[1].strip()
                 if '[' in a:
-                    a = a.split('[')[0]
-                questionlist.append(question.Question(q, a, packet))
+                    a = a.split('[')[0].strip()
+                questionlist.append(question.Question(q, a, None, packet))
                 text = text.replace(m.group(), "")
 
                 m = re.search(r'[0-9]+\.\s.*', text)
             print("Packet " + str(i) + " complete!")
         print("year " + str(year) + " complete!")
+
+    dick_list = [obj.__dict__ for obj in questionlist]
+    with open('test2.json', 'w') as f:
+        json.dump(dick_list, f)
     return questionlist
 
-
-# dick_list = [obj.__dict__ for obj in get_ms_qs()]
-# with open('test2.json', 'w') as file:
+get_ms_qs()
+#load_category("geography")
+# exit(0)
+# with open('artdl.json', encoding='utf8') as f:
+#     print(json.load(f)["data"]["tossups"][0]["formatted_text"][0])
+# exit(0)
+# dick_list = [obj.__dict__ for obj in get_geo_qs()]
+# with open('test3.json', 'w', encoding='utf8') as file:
 #     json.dump(dick_list, file)
+#
+# dick_list = [obj.__dict__ for obj in get_art_qs()]
+# with open('art.json', 'w', encoding='utf8') as file:
+#     json.dump(dick_list, file)
+#
+# with open('art.json', 'r', encoding='utf8') as f:
+#     decoded = json.loads(f.read())
+#
+# print(decoded[0])
