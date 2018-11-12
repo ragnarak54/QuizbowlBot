@@ -1,6 +1,5 @@
 import discord
 from discord.ext import commands
-import packet_handling
 import random
 from fuzzywuzzy import fuzz
 import asyncio
@@ -8,15 +7,10 @@ import config
 import time
 import json
 import question
+import io
 
 bot = commands.Bot(command_prefix=['!', '?'], description="Quiz bowl bot!")
-with open('test2.json', 'r') as f:
-    encoded_list = f.read()
-decoded = json.loads(encoded_list)
 questionlist = []
-for dict in decoded:
-    questionlist.append(question.Question(dict["question"], dict["answer"], dict["packet"]))
-print(len(questionlist))
 groups = []
 teams = []
 players = []
@@ -24,6 +18,15 @@ players = []
 
 @bot.event
 async def on_ready():
+    appinfo = await bot.application_info()
+    bot.procUser = appinfo.owner
+    # with open('test2.json', 'r') as f:
+    #     encoded_list = f.read()
+    # decoded = json.loads(encoded_list)
+    #
+    # for dict in decoded:
+    #     questionlist.append(question.Question(dict["question"], dict["answer"], None, dict["packet"]))
+    print(len(questionlist))
     print('Logged in as')
     print(bot.user.name)
     print(bot.user.id)
@@ -63,8 +66,6 @@ class Player:
     def __str__(self):
         return str(self.member.name)
 
-    def fuckme(self):
-        return str(self.member.name)
 
 @bot.command(name="group", pass_context=True)
 async def group_(ctx, name):
@@ -375,8 +376,26 @@ async def read_question(bonus: bool, playerlist):
     neggers.clear()
 
 
-@bot.command(pass_context=True)
-async def question(ctx, num=1):
+@bot.command()
+async def load(category):
+    with open(category + '.json', 'r') as file:
+        decoded = json.loads(file.read())
+    questions = []
+    for dic in decoded:
+        questions.append(question.Question(dic["question"], dic["answer"], dic["category"], dic["packet"],
+                                           formatted_question=dic["formatted_question"],
+                                           formatted_answer=dic["formatted_answer"]))
+    print(len(questions))
+    questionlist.extend(questions)
+    await bot.say(category + " (" + str(len(questions)) + " questions) loaded. New total of " +
+                  str(len(questionlist)) + " questions.")
+
+
+@bot.command(pass_context=True, name="question")
+async def question_(ctx, num=1):
+    if not questionlist:
+        await bot.say("No questions loaded")
+        return
     correct = False
     skip = False
     user = ctx.message.author
@@ -446,6 +465,43 @@ async def question(ctx, num=1):
         wrong_buzzers.clear()
         print(question_obj.answer)
         print(question_obj.packet)
+
+
+@bot.command()
+async def testformat():
+    await bot.say("**bold text?**")
+
+
+def owner_check():
+    def predicate(ctx):
+        if ctx.message.author == bot.procUser:
+            return True
+        else:
+            print("AHHH")
+            return False
+    return commands.check(predicate)
+
+
+@bot.command(pass_context=True)
+async def message_test(ctx):
+    channel = ctx.message.channel
+    embed = discord.Embed()
+    embed.colour = discord.Colour.dark_blue()
+    embed.set_footer(text="Updated stock for 10/22/2018")
+    embed.description = "The new stock is out!"
+    embed.set_image(url="attachment://res_img.png")
+    with open('res_img.png', 'rb') as f:
+        buffer = io.BytesIO(f.read())
+    print("got here")
+    data = await bot.http.send_file(channel.id, buffer, guild_id=channel.server.id,
+                                       filename='res_img.png', embed=embed.to_dict())
+    returned_message = bot.connection._create_message(channel=channel, **data)
+
+
+@bot.command()
+@owner_check()
+async def ping_boss():
+    await bot.say("<@!208229380575592448>")
 
 
 bot.run(config.token)
