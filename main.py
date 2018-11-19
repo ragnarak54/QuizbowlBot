@@ -13,6 +13,7 @@ import tournament
 bot = commands.Bot(command_prefix=['!', '?'], description="Quiz bowl bot!")
 startup_extensions = ["tournament"]
 questionlist = []
+bonuslist = []
 groups = []
 teams = []
 players = []
@@ -22,6 +23,21 @@ players = []
 async def on_ready():
     appinfo = await bot.application_info()
     bot.procUser = appinfo.owner
+    with open('geography.json', 'r') as file:
+        decoded = json.loads(file.read())
+    questions = []
+    bonuses = []
+    for dic in decoded["tossups"]:
+        questions.append(question.Question(dic["question"], dic["answer"], dic["category"], dic["packet"],
+                                           formatted_question=dic["formatted_question"],
+                                           formatted_answer=dic["formatted_answer"]))
+    print(len(questions))
+    for dic in decoded["bonuses"]:
+        bonuses.append(question.Bonus(dic["leadin"], dic["texts"], dic["answers"], dic["category"], dic["packet"],
+                                      dic["formatted_texts"], dic["formatted_answers"]))
+    questionlist.extend(questions)
+    bonuslist.extend(bonuses)
+    print(len(bonuses), "added")
     # with open('test2.json', 'r') as f:
     #     encoded_list = f.read()
     # decoded = json.loads(encoded_list)
@@ -120,7 +136,8 @@ async def read_question(bonus=False, playerlist=None):
                     if matched == "p":
                         await bot.say("prompt")
                         answer = await bot.wait_for_message(timeout=10, author=msg.author)
-                        matched = match(answer.content, question_obj.formatted_answer, prompt=True)
+                        matched = match(answer.content, question_obj.formatted_answer,
+                                        "</" in question_obj.formatted_answer, prompt=True)
                     if matched == "y":
                         await bot.say("correct!")
                         correct = True
@@ -142,14 +159,72 @@ async def read_question(bonus=False, playerlist=None):
             await print_answer(question_obj.formatted_answer, "</" in question_obj.formatted_answer)
             # await bot.say("The answer is {0}!".format(question_obj.answer))
     if correct and playerlist:
-        await read_bonus(team)
+        await read_bonus(msg.author, team)
 
     neggers.clear()
 
 
-async def read_bonus(team):
-    correct = False
-    await bot.say()
+async def read_bonus(author, team=None):
+    print(author)
+    print(author.name)
+
+    bonus_obj = random.choice(bonuslist)
+    question_arr = bonus_obj.leadin.split(" ")
+    sent_question = await bot.say(" ".join(question_arr[:5]))
+    await asyncio.sleep(1)
+    for i in range(1, len(question_arr) // 5 + 1):
+        sent_question_content = sent_question.content
+        sent_question = await bot.edit_message(sent_question,
+                                               sent_question_content + " " + " ".join(question_arr[i * 5:i * 5 + 5]))
+        print(sent_question.content)
+        await asyncio.sleep(1)
+
+    # leadin done
+    def check(message):
+        if not team:
+            return message.author == author
+        return tournament.get_player(message.author, message.server) in team.members
+
+    for j in range(0, 3):
+        correct = False
+        question_arr = bonus_obj.texts[j].split(" ")
+        formatted = bonus_obj.formatted_answers[j]
+        sent_question = await bot.say(" ".join(question_arr[:5]))
+        await asyncio.sleep(1)
+        for i in range(1, len(question_arr) // 5 + 1):
+            sent_question_content = sent_question.content
+            sent_question = await bot.edit_message(sent_question,
+                                                   sent_question_content + " " + " ".join(question_arr[i * 5:i * 5 + 5]))
+            await asyncio.sleep(1)
+
+        msg = None
+        msg = await bot.wait_for_message(timeout=10, check=check)
+        if msg is not None:
+            matched = match(msg.content, formatted,
+                            "</" in formatted)
+            if matched == "p":
+                await bot.say("prompt")
+                answer = await bot.wait_for_message(timeout=10, author=msg.author)
+                matched = match(answer.content, formatted, "</" in formatted, prompt=True)
+            if matched == "y":
+                await bot.say("correct!")
+                await print_answer(formatted, "</" in formatted)
+                correct = True
+                if team:
+                    team = tournament.get_team(msg.author, msg.author.server)
+                    player = tournament.get_player(msg.author, msg.author.server)
+                    team.score += 10
+                    player.score += 10
+            else:
+                await bot.say("incorrect!")
+                print("incorrect")
+        else:
+            await bot.say("Time's up!")
+            await asyncio.sleep(1)
+        if not correct:
+            await print_answer(bonus_obj.formatted_answers[j], "</" in formatted)
+        await asyncio.sleep(1)
+
 
 
 def match(given, answer, formatted, prompt=False):
@@ -250,17 +325,28 @@ async def print_answer(answer: str, formatted):
     await bot.say(printme)
 
 
+@bot.command(pass_context=True, name="bonus")
+async def bonus_(ctx):
+    await read_bonus(ctx.message.author)
+
+
 @bot.command()
 async def load(category):
     with open(category + '.json', 'r') as file:
         decoded = json.loads(file.read())
     questions = []
-    for dic in decoded:
+    bonuses = []
+    for dic in decoded["tossups"]:
         questions.append(question.Question(dic["question"], dic["answer"], dic["category"], dic["packet"],
                                            formatted_question=dic["formatted_question"],
                                            formatted_answer=dic["formatted_answer"]))
     print(len(questions))
+    for dic in decoded["bonuses"]:
+        bonuses.append(question.Bonus(dic["leadin"], dic["texts"], dic["answers"], dic["category"], dic["packet"],
+                                      dic["formatted_texts"], dic["formatted_answers"]))
     questionlist.extend(questions)
+    bonuslist.extend(bonuses)
+    print(len(bonuses), "added")
     await bot.say(category + " (" + str(len(questions)) + " questions) loaded. New total of " +
                   str(len(questionlist)) + " questions.")
 
