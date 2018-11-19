@@ -14,6 +14,7 @@ bot = commands.Bot(command_prefix=['!', '?'], description="Quiz bowl bot!")
 startup_extensions = ["tournament"]
 questionlist = []
 bonuslist = []
+loaded = []
 groups = []
 teams = []
 players = []
@@ -226,7 +227,6 @@ async def read_bonus(author, team=None):
         await asyncio.sleep(1)
 
 
-
 def match(given, answer, formatted, prompt=False):
     strong = []
     i = 0
@@ -267,7 +267,7 @@ def match(given, answer, formatted, prompt=False):
             return "p"
         else:
             return "n"
-    else:  # fuck
+    else:
         answers = answer.replace("The", "").split(" ")
         givens = given.split(" ")
         promp = False
@@ -332,6 +332,9 @@ async def bonus_(ctx):
 
 @bot.command()
 async def load(category):
+    if category in loaded:
+        await bot.say(category + " already loaded")
+        return
     with open(category + '.json', 'r') as file:
         decoded = json.loads(file.read())
     questions = []
