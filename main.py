@@ -22,12 +22,12 @@ players = []
 async def on_ready():
     appinfo = await bot.application_info()
     bot.procUser = appinfo.owner
-    with open('test2.json', 'r') as f:
-        encoded_list = f.read()
-    decoded = json.loads(encoded_list)
-
-    for dict in decoded:
-        questionlist.append(question.Question(dict["question"], dict["answer"], None, dict["packet"]))
+    # with open('test2.json', 'r') as f:
+    #     encoded_list = f.read()
+    # decoded = json.loads(encoded_list)
+    #
+    # for dict in decoded:
+    #     questionlist.append(question.Question(dict["question"], dict["answer"], None, dict["packet"]))
     print(len(questionlist))
     print('Logged in as')
     print(bot.user.name)
@@ -46,6 +46,8 @@ async def read_question(bonus=False, playerlist=None):
     skip = False
     neggers = []
     question_obj = random.choice(questionlist)
+    while "</" not in question_obj.formatted_answer:
+        question_obj = random.choice(questionlist)
     question_arr = question_obj.question.split(" ")
     sent_question = await bot.say(" ".join(question_arr[:5]))
     await asyncio.sleep(1)
@@ -63,53 +65,71 @@ async def read_question(bonus=False, playerlist=None):
         msg = None
         msg = await bot.wait_for_message(timeout=1, check=check)
         if msg is not None:
+            sent_question_content = sent_question.content
+            sent_question = await bot.edit_message(sent_question, sent_question_content + " :bell: ")
             await bot.say("buzz from {0}! 10 seconds to answer".format(msg.author))
             answer = await bot.wait_for_message(timeout=10, author=msg.author)
             if answer is not None:
-                ratio = fuzz.ratio(answer.content.lower(), question_obj.answer.lower())
-                if ratio > 75:
+                matched = match(answer.content, question_obj.formatted_answer, "</" in question_obj.formatted_answer)
+                if matched == "p":
+                    await bot.say("prompt")
+                    answer = await bot.wait_for_message(timeout=10, author=msg.author)
+                    matched = match(answer.content, question_obj.formatted_answer, prompt=True)
+                if matched == "y":
                     await bot.say("correct!")
-                    print("correct! ratio: " + str(ratio))
                     correct = True
-                    await bot.edit_message(sent_question, question_obj.question)
-                    team = tournament.get_team(msg.author, msg.author.server)
-                    player = tournament.get_player(msg.author, msg.author.server)
-                    team.score += 20
-                    player.score += 20
+                    sent_question_content = sent_question.content
+                    await bot.edit_message(sent_question, sent_question_content + " " + " ".join(question_arr[i * 5+5:]))
+                    if playerlist:
+                        team = tournament.get_team(msg.author, msg.author.server)
+                        player = tournament.get_player(msg.author, msg.author.server)
+                        team.score += 20
+                        player.score += 20
                     break
                 else:
                     await bot.say("incorrect!")
                     print("incorrect")
                     msg = None
-                    sent_question = await bot.say(sent_question_content)
+                    sent_question = await bot.say(sent_question.content)
             else:
                 await bot.say("Time's up!")
+                sent_question = await bot.say(sent_question_content)
                 await asyncio.sleep(1)
     wait_time = 7
+    print(question_obj.formatted_answer)
     if not correct:
 
         while wait_time > 0:
             timer = time.time()
-            print("waiting for " + str(wait_time))
             msg = None
-            msg = await bot.wait_for_message(timeout=int(wait_time), check=check)
-            wait_time -= (time.time() - timer)  # new wait time = old time - (time elapsed waiting for buzz =
+            if wait_time < 1:
+                msg = await bot.wait_for_message(timeout=int(1), check=check)
+            else:
+                msg = await bot.wait_for_message(timeout=int(wait_time), check=check)
+            wait_time -= (time.time() - timer)
             if wait_time < 0.5:
                 break
             if msg is not None:
+                await bot.edit_message(sent_question, sent_question.content + " :bell: ")
                 await bot.say("buzz from {0}! 10 seconds to answer".format(msg.author))
                 answer = None
                 answer = await bot.wait_for_message(timeout=10, author=msg.author)
                 if answer is not None:
-                    ratio = fuzz.ratio(answer.content.lower(), question_obj.answer.lower())
-                    if ratio > 75:
+                    matched = match(answer.content, question_obj.formatted_answer,
+                                    "</" in question_obj.formatted_answer)
+                    if matched == "p":
+                        await bot.say("prompt")
+                        answer = await bot.wait_for_message(timeout=10, author=msg.author)
+                        matched = match(answer.content, question_obj.formatted_answer, prompt=True)
+                    if matched == "y":
                         await bot.say("correct!")
-                        print("correct! ratio: " + str(ratio))
                         correct = True
-                        team = tournament.get_team(msg.author, msg.author.server)
-                        player = tournament.get_player(msg.author, msg.author.server)
-                        team.score += 20
-                        player.score += 20
+                        await bot.edit_message(sent_question, question_obj.question)
+                        if playerlist:
+                            team = tournament.get_team(msg.author, msg.author.server)
+                            player = tournament.get_player(msg.author, msg.author.server)
+                            team.score += 20
+                            player.score += 20
                         break
                     else:
                         await bot.say("incorrect!")
@@ -119,9 +139,115 @@ async def read_question(bonus=False, playerlist=None):
                     await asyncio.sleep(1)
 
         if not correct:
-            await bot.say("The answer is {0}!".format(question_obj.answer))
+            await print_answer(question_obj.formatted_answer, "</" in question_obj.formatted_answer)
+            # await bot.say("The answer is {0}!".format(question_obj.answer))
+    if correct and playerlist:
+        await read_bonus(team)
 
     neggers.clear()
+
+
+async def read_bonus(team):
+    correct = False
+    await bot.say()
+
+
+def match(given, answer, formatted, prompt=False):
+    strong = []
+    i = 0
+    marker = 0
+    tag = False
+    promp = False
+    if formatted: # woohoo!
+        answer = answer.replace("<u>", "").replace("</u>", "")
+        while i < len(answer):
+            if answer[i] == '<' and (answer[i+1:i+7] == "strong" or answer[i+1:i+3] == "em") and not tag:
+                # found tag
+                tag = True
+                while answer[i] != '>':
+                    i += 1
+                i += 1
+                marker = i
+            # now in strong portion
+            if answer[i] == '<' and (answer[i+1:i+8] == "/strong" or answer[i+1:i+4] == "/em")and tag:
+                strong.append(answer[marker:i])
+                tag = False
+            i += 1
+
+        for bold in strong:
+            if " " in bold:
+                ratio = fuzz.ratio(given.lower(), bold.lower())
+                if ratio > 75:
+                    return "y"
+                if ratio < 50 or prompt:
+                    return "n"
+                return "p"
+            for w in given.split(" "):
+                ratio = fuzz.ratio(w.lower(), bold.lower())
+                if ratio > 75:
+                    return "y"
+                if ratio > 55:
+                    promp = True
+        if not prompt and promp:
+            return "p"
+        else:
+            return "n"
+    else:  # fuck
+        answers = answer.replace("The", "").split(" ")
+        givens = given.split(" ")
+        promp = False
+        for word in answers:
+            for w in givens:
+                ratio = fuzz.ratio(w.lower(), word.lower())
+                print(ratio)
+                if ratio > 80:
+                    return "y"
+                if ratio > 55:
+                    promp = True
+        if not prompt and promp:
+            return "p"
+        return "n"
+
+
+async def print_answer(answer: str, formatted):
+    if not formatted:
+        await bot.say(answer)
+        return
+    i = 0
+    answer = answer.replace("<u>", "").replace("</u>", "")
+    strongtag = False
+    emtag = False
+    printme = ""
+    while i < len(answer):
+        if answer[i] == '<' and answer[i + 1:i + 7] == "strong" and not strongtag:
+            strongtag = True
+            while answer[i] != '>':
+                i += 1
+            printme += "**"
+        elif answer[i] == '<' and answer[i + 1:i + 3] == "em" and not emtag:
+            emtag = True
+            while answer[i] != '>':
+                i += 1
+            if printme[len(printme) - 2] == '*':
+                printme += " *"
+            else:
+                printme += "*"
+        elif answer[i] == '<' and answer[i + 1:i + 8] == "/strong" and strongtag:
+            strongtag = False
+            while answer[i] != '>':
+                i += 1
+            printme += "**"
+        elif answer[i] == '<' and answer[i + 1:i + 4] == "/em" and emtag:
+            emtag = False
+            while answer[i] != '>':
+                i += 1
+            printme += "*"
+        else:
+            if answer[i] == '<':
+                break
+            printme += answer[i]
+        i += 1
+    await bot.say(printme)
 
 
 @bot.command()
@@ -173,7 +299,14 @@ async def question_(ctx, num=1):
                 if "buzz" in msg.content:
                     await bot.say("buzz from {0}! 10 seconds to answer".format(msg.author))
                     answer = await bot.wait_for_message(timeout=10, author=msg.author)
+                    matched = match(answer.content, question_obj.formatted_answer)
                     ratio = fuzz.ratio(answer.content.lower(), question_obj.answer.lower())
+                    if matched == "y":
+                        await bot.say("correct!")
+                        correct = True
+                        break
+                    if matched == "p":
+                        await bot.say("prompt")
                     if ratio > 80:
                         await bot.say("correct!")
                         print("correct! ratio: " + str(ratio))
@@ -219,7 +352,10 @@ async def question_(ctx, num=1):
 
 @bot.command()
 async def testformat():
-    await bot.say("**bold text?**")
+    await bot.say("test :bell: test")
+
+
+
 
 
 def owner_check():
