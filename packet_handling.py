@@ -37,21 +37,29 @@ def get_questions():
     return questionlist
 
 
-
 def load_category(cat):
     """Given a category, opens the downloaded archive, serializes the relevant information about tossups, and
     then deserializes it into a new json to be loaded up by the main program"""
 
     questions = []
+    bonuses = []
     with open(cat + 'dl.json', encoding='utf8') as fop:
         data = json.load(fop)
     for tossup in data["data"]["tossups"]:
         questions.append(question.Question(tossup["text"], unescape(tossup["answer"]), cat, tossup["tournament"]["name"],
                                            tossup["formatted_text"], unescape(tossup["formatted_answer"])))
-
-    dict_list = [obj.__dict__ for obj in questions]
+    for bonus in data["data"]["bonuses"]:
+        for i in range(0, 3):
+            bonus["formatted_answers"][i] = unescape(bonus["formatted_answers"][i])
+            bonus["answers"][i] = unescape(bonus["answers"][i])
+        bonuses.append(question.Bonus(bonus["leadin"], bonus["texts"], bonus["answers"], cat, bonus["tournament"]["name"],
+                                      bonus["formatted_texts"], bonus["formatted_answers"]))
+    q_list = [obj.__dict__ for obj in questions]
+    b_list = [obj.__dict__ for obj in bonuses]
+    final = {"tossups": q_list,
+             "bonuses": b_list}
     with open(cat + '.json', 'w', encoding='utf8') as fop:
-        json.dump(dict_list, fop)
+        json.dump(final, fop)
 
 
 def get_ms_qs():
@@ -89,9 +97,7 @@ def get_ms_qs():
     with open('test2.json', 'w') as f:
         json.dump(dick_list, f)
     return questionlist
-
-get_ms_qs()
-#load_category("geography")
+load_category("geography")
 # exit(0)
 # with open('artdl.json', encoding='utf8') as f:
 #     print(json.load(f)["data"]["tossups"][0]["formatted_text"][0])
