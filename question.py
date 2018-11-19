@@ -8,4 +8,13 @@ class Question:
         self.formatted_answer = formatted_answer
 
 
+class Bonus:
+    def __init__(self, leadin, texts, answers, category, packet, formatted_texts=None, formatted_answers=None):
+        self.leadin = leadin
+        self.texts = texts
+        self.answers = answers
+        self.category = category
+        self.packet = packet
+        self.formatted_texts = formatted_texts
+        self.formatted_answers = formatted_answers
 
