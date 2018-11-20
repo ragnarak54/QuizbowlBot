@@ -91,7 +91,7 @@ async def read_question(bonus=False, playerlist=None):
                 if matched == "p":
                     await bot.say("prompt")
                     answer = await bot.wait_for_message(timeout=10, author=msg.author)
-                    matched = match(answer.content, question_obj.formatted_answer, prompt=True)
+                    matched = match(answer.content, question_obj.formatted_answer, is_prompt=True)
                 if matched == "y":
                     await bot.say("correct!")
                     correct = True
@@ -138,7 +138,7 @@ async def read_question(bonus=False, playerlist=None):
                         await bot.say("prompt")
                         answer = await bot.wait_for_message(timeout=10, author=msg.author)
                         matched = match(answer.content, question_obj.formatted_answer,
-                                        "</" in question_obj.formatted_answer, prompt=True)
+                                        "</" in question_obj.formatted_answer, is_prompt=True)
                     if matched == "y":
                         await bot.say("correct!")
                         correct = True
@@ -206,7 +206,7 @@ async def read_bonus(author, team=None):
             if matched == "p":
                 await bot.say("prompt")
                 answer = await bot.wait_for_message(timeout=10, author=msg.author)
-                matched = match(answer.content, formatted, "</" in formatted, prompt=True)
+                matched = match(answer.content, formatted, "</" in formatted, is_prompt=True)
             if matched == "y":
                 await bot.say("correct!")
                 await print_answer(formatted, "</" in formatted)
@@ -227,12 +227,12 @@ async def read_bonus(author, team=None):
         await asyncio.sleep(1)
 
 
-def match(given, answer, formatted, prompt=False):
+def match(given, answer, formatted, is_prompt=False):
     strong = []
     i = 0
     marker = 0
     tag = False
-    promp = False
+    prompt = False
     if formatted: # woohoo!
         answer = answer.replace("<u>", "").replace("</u>", "")
         while i < len(answer):
@@ -250,27 +250,24 @@ def match(given, answer, formatted, prompt=False):
             i += 1
 
         for bold in strong:
-            if " " in bold:
-                ratio = fuzz.ratio(given.lower(), bold.lower())
-                if ratio > 75:
-                    return "y"
-                if ratio < 50 or prompt:
-                    return "n"
-                return "p"
-            for w in given.split(" "):
-                ratio = fuzz.ratio(w.lower(), bold.lower())
+            num_words = len(bold.split(" "))
+            print("length", num_words)
+            for i in range(0, len(given.split(" ")) - num_words + 1):
+                phrase = " ".join(given.split(" ")[i:i+num_words])
+                ratio = fuzz.ratio(phrase.lower(), bold.lower())
+                print(bold, phrase, ratio)
                 if ratio > 75:
                     return "y"
                 if ratio > 55:
-                    promp = True
-        if not prompt and promp:
+                    prompt = True
+        if not is_prompt and prompt:
             return "p"
         else:
             return "n"
     else:
         answers = answer.replace("The", "").split(" ")
         givens = given.split(" ")
-        promp = False
+        prompt = False
         for word in answers:
             for w in givens:
                 ratio = fuzz.ratio(w.lower(), word.lower())
@@ -278,8 +275,8 @@ def match(given, answer, formatted, prompt=False):
                 if ratio > 80:
                     return "y"
                 if ratio > 55:
-                    promp = True
-        if not prompt and promp:
+                    prompt = True
+        if not is_prompt and prompt:
             return "p"
         return "n"
 
