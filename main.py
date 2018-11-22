@@ -31,8 +31,8 @@ async def bonus_(ctx):
     await reading.read_bonus(bot, ctx.message.author)
 
 
-@bot.command(pass_context=True, name="question", aliases=['q'])
-async def question_(ctx, category=None, num=1):
+@bot.command(pass_context=True, name="question", aliases=['q', 'tossup', 't'])
+async def question_(ctx, *, category=None):
     print(category)
     if category:
         results = get_matches(category, categories)
