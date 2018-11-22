@@ -1,5 +1,5 @@
 import discord
-import main
+import reading
 from discord.ext import commands
 groups = []
 teams = []
@@ -78,7 +78,7 @@ class Tournament:
 
     @commands.command(pass_context=True)
     async def mygroup(self, ctx):
-        group = self.get_group(ctx.message.author)
+        group = get_group(ctx.message.author)
         if group is not None:
             await self.bot.say(group.name)
         else:
@@ -89,7 +89,7 @@ class Tournament:
         if any(each_team.name == name for each_team in teams):
             await self.bot.say("That team already exists!")
             return
-        if self.get_team(ctx.message.author, ctx.message.server) is not None:
+        if get_team(ctx.message.author, ctx.message.server) is not None:
             await self.bot.say("You're already in a team.")
             return
         else:
@@ -113,7 +113,7 @@ class Tournament:
 
     @commands.command(pass_context=True)
     async def myteam(self, ctx):
-        team = self.get_team(ctx.message.author, ctx.message.server)
+        team = get_team(ctx.message.author, ctx.message.server)
         if team is not None:
             await self.bot.say(team.name)
         else:
@@ -121,13 +121,13 @@ class Tournament:
 
     @commands.command(name="captain", pass_context=True)
     async def captain_(self, ctx, new_captain: discord.Member = None):
-        team = self.get_team(ctx.message.author, ctx.message.server)
+        team = get_team(ctx.message.author, ctx.message.server)
         if team is not None:
             if new_captain is None:
                 await self.bot.say("{0} is the captain of your team, {1}".format(team.captain, team.name))
                 return
             if team.captain == ctx.message.author:
-                if self.get_player(new_captain, ctx.message.server) in team.members:
+                if get_player(new_captain, ctx.message.server) in team.members:
                     team.captain = new_captain
                     await self.bot.say("New team captain of {0}: {1}".format(team, new_captain))
                 else:
@@ -139,7 +139,7 @@ class Tournament:
 
     @commands.command(pass_context=True)
     async def join(self, ctx, name):
-        if self.get_player(ctx.message.author, ctx.message.server) is not None:
+        if get_player(ctx.message.author, ctx.message.server) is not None:
             await self.bot.say("You're already in a team. Leave your team first if you want to join another one.")
             return
         for team in teams:
@@ -152,7 +152,7 @@ class Tournament:
 
     @commands.command(pass_context=True, aliases=['leaveteam'])
     async def leave(self, ctx, name=None):
-        member_team = self.get_team(ctx.message.author, ctx.message.server)
+        member_team = get_team(ctx.message.author, ctx.message.server)
         if name is None:
             if member_team is None:
                 await self.bot.say("You're not in a team.")
@@ -171,7 +171,7 @@ class Tournament:
                         member_team) + "".join(
                         [":small_blue_diamond:" + str(member) + "\n" for member in member_team.members]))
                 return
-            member_team.members.remove(self.get_player(ctx.message.author, ctx.message.server))
+            member_team.members.remove(get_player(ctx.message.author, ctx.message.server))
             await self.bot.say("Left {0}!".format(name))
             return
 
@@ -180,7 +180,7 @@ class Tournament:
     @commands.command(pass_context=True)
     async def tournament(self, ctx, *, teams_in_game=None):
         bot = self.bot
-        caller_team = self.get_team(ctx.message.author, ctx.message.server)
+        caller_team = get_team(ctx.message.author, ctx.message.server)
         if caller_team is None:
             await self.bot.say("You should make or join a team first.")
             return
@@ -199,7 +199,7 @@ class Tournament:
             return
         teams_in_game = []
         for teamname in team_names:
-            teams_in_game.append(self.serialize_team(teamname, ctx.message.server))
+            teams_in_game.append(serialize_team(teamname, ctx.message.server))
         for team in teams_in_game:
             if team not in teams:
                 await self.bot.say("{0} isn't a team. Make sure to check your spelling! Teams currently "
@@ -262,11 +262,15 @@ class Tournament:
             playerlist += t.members
         print(playerlist)
         for i in range(num_of_questions):
-            await main.read_question(bonus, playerlist)
+            await reading.read_question(bot, bonus, playerlist)
         teams_in_game.sort(reverse=True, key=lambda x: x.score)
         await bot.say("Tournament over! Final leaderboard:\n" +
                       "".join([":small_blue_diamond:" + t.name + ": " + str(t.score) + " points!\n" for t in
                                teams_in_game]))
+
+    @commands.command()
+    async def testing(self):
+        await reading.read_question(self.bot)
 
 
 def setup(bot):
