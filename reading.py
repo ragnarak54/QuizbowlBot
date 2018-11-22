@@ -4,11 +4,14 @@ from fuzzywuzzy import fuzz
 import time
 import quizdb
 
-async def read_question(bot, bonus=False, playerlist=None, questions=None):
+async def read_question(bot, bonus=False, playerlist=None, ms=False):
     # print([str(player) for player in playerlist])
     correct = False
     skip = False
-    question_obj = quizdb.get_tossups()
+    if not ms:
+        question_obj = quizdb.get_tossups()
+    else:
+        question_obj = quizdb.get_ms()
     print(question_obj.formatted_answer)
     neggers = []
     print(question_obj.category)

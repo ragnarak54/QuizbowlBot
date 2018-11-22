@@ -44,3 +44,19 @@ def get_bonuses(number=1):
     conn.close()
     return question.Bonus(data[0], [unescape(x) for x in data[1]], [unescape(x) for x in data[2]], data[3], data[4])
 
+
+def get_ms(number=1):
+    conn = psycopg2.connect("dbname={0} user={1} password={2} host={3}".format(config.mysql['db'], config.mysql['user'],
+                                                                               config.mysql['passwd'],
+                                                                               config.mysql['host']))
+    cursor = conn.cursor()
+    cursor.execute("select tossups.text, tossups.formatted_answer, categories.name, tournaments.name from tossups "
+                   "join tournaments on tossups.tournament_id = tournaments.id and tournaments.difficulty = 1 "
+                   "join categories on tossups.category_id = categories.id "
+                   "order by random() limit {}".format(number))
+    data = cursor.fetchall()[0]
+    cursor.close()
+    conn.close()
+
+    return question.Tossup(unescape(data[0]), unescape(data[1]), data[2], data[3])
+

@@ -31,7 +31,11 @@ async def bonus_(ctx):
 @bot.command(pass_context=True, name="question", aliases=['q'])
 async def question_(ctx, num=1):
     await reading.read_question(bot)
-    return
+
+
+@bot.command()
+async def ms():
+    await reading.read_question(bot, ms=True)
 
 
 @bot.command()
