@@ -1,20 +1,18 @@
-class Question:
-    def __init__(self, question, answer, category, packet, formatted_question=None, formatted_answer=None):
-        self.question = question
-        self.answer = answer
+class Tossup:
+    def __init__(self, text, formatted_answer, category, packet, formatted_question=None):
+        self.text = text
+        self.formatted_answer = formatted_answer
         self.category = category
         self.packet = packet
         self.formatted_question = formatted_question
-        self.formatted_answer = formatted_answer
 
 
 class Bonus:
-    def __init__(self, leadin, texts, answers, category, packet, formatted_texts=None, formatted_answers=None):
+    def __init__(self, leadin, texts, formatted_answers, category, packet, formatted_texts=None):
         self.leadin = leadin
         self.texts = texts
-        self.answers = answers
+        self.formatted_answers = formatted_answers
         self.category = category
         self.packet = packet
         self.formatted_texts = formatted_texts
-        self.formatted_answers = formatted_answers
 
