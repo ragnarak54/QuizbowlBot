@@ -4,12 +4,13 @@ from fuzzywuzzy import fuzz
 import time
 import quizdb
 
-async def read_question(bot, bonus=False, playerlist=None, ms=False):
+async def read_question(bot, bonus=False, playerlist=None, ms=False, category=None):
     # print([str(player) for player in playerlist])
     correct = False
     skip = False
     if not ms:
-        question_obj = quizdb.get_tossups()
+        print(category)
+        question_obj = quizdb.get_tossups(category)
     else:
         question_obj = quizdb.get_ms()
     print(question_obj.formatted_answer)
@@ -22,7 +23,6 @@ async def read_question(bot, bonus=False, playerlist=None, ms=False):
         sent_question_content = sent_question.content
         sent_question = await bot.edit_message(sent_question,
                                                sent_question_content + " " + " ".join(question_arr[i * 5:i * 5 + 5]))
-        print(sent_question.content)
 
         def check(message):
             if not playerlist:
@@ -44,6 +44,7 @@ async def read_question(bot, bonus=False, playerlist=None, ms=False):
                     matched = match(answer.content, question_obj.formatted_answer, is_prompt=True)
                 if matched == "y":
                     await bot.say("correct!")
+                    await print_answer(bot, question_obj.formatted_answer, True)
                     correct = True
                     sent_question_content = sent_question.content
                     await bot.edit_message(sent_question, sent_question_content + " " + " ".join(question_arr[i * 5+5:]))
@@ -91,6 +92,7 @@ async def read_question(bot, bonus=False, playerlist=None, ms=False):
                                         "</" in question_obj.formatted_answer, is_prompt=True)
                     if matched == "y":
                         await bot.say("correct!")
+                        await print_answer(bot, question_obj.formatted_answer, True)
                         correct = True
                         if playerlist:
                             team = tournament.get_team(msg.author, msg.author.server)

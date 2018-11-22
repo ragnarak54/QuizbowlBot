@@ -3,9 +3,12 @@ from discord.ext import commands
 import config
 import io
 import reading
+from fuzzywuzzy import process
 
 bot = commands.Bot(command_prefix=['!', '?'], description="Quiz bowl bot!")
 startup_extensions = ["tournament"]
+categories = ["mythology", "literature", "trash", "science", "history", "religion", "geography", "fine arts", "social science", "philosophy", "current events"]
+aliases = {"lit": "literature", "myth": "mythology", "sci": "science", "geo": "geography", "art": "fine arts"}
 
 
 @bot.event
@@ -29,8 +32,22 @@ async def bonus_(ctx):
 
 
 @bot.command(pass_context=True, name="question", aliases=['q'])
-async def question_(ctx, num=1):
-    await reading.read_question(bot)
+async def question_(ctx, category=None, num=1):
+    print(category)
+    if category:
+        results = get_matches(category, categories)
+        if category in aliases:
+            category = aliases[category]
+        elif category not in results:
+            if results[0][1] > 80:
+                category = results[0][0]
+    print(category)
+    await reading.read_question(bot, category=category)
+
+
+def get_matches(query, choices, limit=6):
+    results = process.extract(query, choices, limit=limit)
+    return results
 
 
 @bot.command()
