@@ -1,6 +1,7 @@
 import discord
 import reading
 from discord.ext import commands
+import asyncio
 groups = []
 teams = []
 players = []
@@ -99,7 +100,12 @@ class Tournament:
         team.members.append(player)
         print(player)
         teams.append(team)
-        await self.bot.say('New team "{0}" created! Type !join {0} to join!'.format(name))
+        if ctx.message.author.nick:
+            await self.bot.say(
+                f'''New team "{name}" created! Type !join {name} to join {ctx.message.author.nick}'s team!''')
+        else:
+            await self.bot.say(
+                f'''New team "{name}" created! Type !join {name} to join {ctx.message.author.name}'s team!''')
 
     @commands.command(name="teams", pass_context=True, aliases=["listteams", "allteams"])
     async def teams_(self, ctx):
@@ -262,7 +268,10 @@ class Tournament:
             playerlist += t.members
         print(playerlist)
         for i in range(num_of_questions):
+            await bot.say(f"Tossup {i+1} of {num_of_questions}:")
+            await asyncio.sleep(1)
             await reading.read_question(bot, bonus, playerlist)
+
         teams_in_game.sort(reverse=True, key=lambda x: x.score)
         await bot.say("Tournament over! Final leaderboard:\n" +
                       "".join([":small_blue_diamond:" + t.name + ": " + str(t.score) + " points!\n" for t in
