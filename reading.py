@@ -26,12 +26,16 @@ async def read_question(bot, bonus=False, playerlist=None, ms=False, category=No
 
         def check(message):
             if not playerlist:
-                return message.author not in neggers and "buzz" in message.content
+                return message.author not in neggers and ("buzz" in message.content or "skip" in message.content)
             return tournament.get_player(message.author, message.server) in playerlist and message.author not in neggers and "buzz" in message.content.lower()
 
         msg = None
         msg = await bot.wait_for_message(timeout=1, check=check)
         if msg is not None:
+            if "skip" in msg.content:
+                await bot.edit_message(sent_question, question_obj.text)
+                skip = True
+                break
             sent_question_content = sent_question.content
             sent_question = await bot.edit_message(sent_question, sent_question_content + " :bell: ")
             await bot.say("buzz from {0}! 10 seconds to answer".format(msg.author))
@@ -56,8 +60,6 @@ async def read_question(bot, bonus=False, playerlist=None, ms=False, category=No
                     break
                 else:
                     await bot.say("incorrect!")
-                    print("incorrect")
-                    msg = None
                     sent_question = await bot.say(sent_question.content)
             else:
                 await bot.say("Time's up!")
@@ -65,7 +67,9 @@ async def read_question(bot, bonus=False, playerlist=None, ms=False, category=No
                 await asyncio.sleep(1)
     wait_time = 7
     print(question_obj.formatted_answer)
-    if not correct:
+    if skip:
+        await print_answer(bot, question_obj.formatted_answer, "</" in question_obj.formatted_answer)
+    elif not correct:
 
         while wait_time > 0:
             timer = time.time()
@@ -102,7 +106,6 @@ async def read_question(bot, bonus=False, playerlist=None, ms=False, category=No
                         break
                     else:
                         await bot.say("incorrect!")
-                        print("incorrect")
                 else:
                     await bot.say("Time's up!")
                     await asyncio.sleep(1)
@@ -111,9 +114,13 @@ async def read_question(bot, bonus=False, playerlist=None, ms=False, category=No
             await print_answer(bot, question_obj.formatted_answer, "</" in question_obj.formatted_answer)
             # await bot.say("The answer is {0}!".format(question_obj.answer))
     if correct and playerlist:
+        await bot.say("Bonus question:")
+        asyncio.sleep(1)
         await read_bonus(bot, msg.author, team)
-
     neggers.clear()
+    msg = await bot.wait_for_message(timeout=10, content="n")
+    if msg is not None:
+        await read_question(bot, ms=ms, category=category)
 
 
 def match(given, answer, formatted, is_prompt=False):
