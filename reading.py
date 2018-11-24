@@ -25,7 +25,7 @@ async def read_question(bot, bonus=False, playerlist=None, ms=False, category=No
 
         def check(message):
             if not playerlist:
-                return message.author not in neggers and ("buzz" in message.content or "skip" in message.content)
+                return message.author not in neggers and ("buzz" in message.content.lower() or "skip" in message.content.lower())
             return tournament.get_player(message.author, message.server) in playerlist and message.author not in neggers and "buzz" in message.content.lower()
 
         msg = None
@@ -37,7 +37,7 @@ async def read_question(bot, bonus=False, playerlist=None, ms=False, category=No
                 break
             sent_question_content = sent_question.content
             sent_question = await bot.edit_message(sent_question, sent_question_content + " :bell: ")
-            await bot.say("buzz from {0}! 10 seconds to answer".format(msg.author))
+            await bot.say(f"buzz from {msg.author}! 10 seconds to answer")
             answer = await bot.wait_for_message(timeout=10, author=msg.author)
             if answer is not None:
                 matched = match(answer.content, question_obj.formatted_answer, "</" in question_obj.formatted_answer)
@@ -83,7 +83,7 @@ async def read_question(bot, bonus=False, playerlist=None, ms=False, category=No
                 break
             if msg is not None:
                 await bot.edit_message(sent_question, sent_question.content + " :bell: ")
-                await bot.say("buzz from {0}! 10 seconds to answer".format(msg.author))
+                await bot.say(f"buzz from {msg.author}! 10 seconds to answer")
                 answer = None
                 answer = await bot.wait_for_message(timeout=10, author=msg.author)
                 if answer is not None:
