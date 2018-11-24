@@ -9,11 +9,10 @@ async def read_question(bot, bonus=False, playerlist=None, ms=False, category=No
     correct = False
     skip = False
     if not ms:
-        print(category)
         question_obj = quizdb.get_tossups(category)
     else:
         question_obj = quizdb.get_ms()
-    print(question_obj.formatted_answer)
+    print(f'question from {question_obj.packet}, answer {question_obj.formatted_answer}')
     neggers = []
     print(question_obj.category)
     question_arr = question_obj.text.split(" ")
@@ -45,7 +44,8 @@ async def read_question(bot, bonus=False, playerlist=None, ms=False, category=No
                 if matched == "p":
                     await bot.say("prompt")
                     answer = await bot.wait_for_message(timeout=10, author=msg.author)
-                    matched = match(answer.content, question_obj.formatted_answer, is_prompt=True)
+                    matched = match(answer.content, question_obj.formatted_answer,
+                                    "</" in question_obj.formatted_answer, is_prompt=True)
                 if matched == "y":
                     await bot.say("correct!")
                     await print_answer(bot, question_obj.formatted_answer, True)
@@ -114,8 +114,6 @@ async def read_question(bot, bonus=False, playerlist=None, ms=False, category=No
             await print_answer(bot, question_obj.formatted_answer, "</" in question_obj.formatted_answer)
             # await bot.say("The answer is {0}!".format(question_obj.answer))
     if correct and playerlist:
-        await bot.say("Bonus question:")
-        asyncio.sleep(1)
         await read_bonus(bot, msg.author, team)
     neggers.clear()
     msg = await bot.wait_for_message(timeout=10, content="n")
@@ -130,7 +128,7 @@ def match(given, answer, formatted, is_prompt=False):
     tag = False
     prompt = False
     if formatted:  # woohoo!
-        answer = answer.replace("<u>", "").replace("</u>", "")
+        answer = answer.replace("<u>", "").replace("</u>", "").replace("<em>", "").replace("</em", "")
         while i < len(answer):
             if answer[i] == '<' and (answer[i + 1:i + 7] == "strong" or answer[i + 1:i + 3] == "em") and not tag:
                 # found tag
@@ -224,6 +222,9 @@ async def read_bonus(bot, author, team=None):
 
     bonus_obj = quizdb.get_bonuses()
     print(bonus_obj.formatted_answers[0])
+    if team:
+        await bot.say(f"Bonus for {team.name}:")
+        await asyncio.sleep(1)
     if bonus_obj.leadin == "[missing]":
         bonus_obj.leadin = "For 10 points each:"
     question_arr = bonus_obj.leadin.split(" ")
@@ -280,4 +281,3 @@ async def read_bonus(bot, author, team=None):
             await asyncio.sleep(1)
         if not correct:
             await print_answer(bot, bonus_obj.formatted_answers[j], "</" in formatted)
-        await asyncio.sleep(1)
