@@ -2,6 +2,7 @@ import discord
 import reading
 from discord.ext import commands
 import asyncio
+
 groups = []
 teams = []
 players = []
@@ -75,7 +76,7 @@ class Tournament:
             await self.bot.say("That group already exists!")
             return
         groups.append(Group(name, [ctx.message.author]))
-        await bot.say('New group "{0}" created! Type !join {0} to join!'.format(name))
+        await bot.say(f'New group "{name}" created! Type !join {name} to join!')
 
     @commands.command(pass_context=True)
     async def mygroup(self, ctx):
@@ -111,7 +112,7 @@ class Tournament:
     async def teams_(self, ctx):
         teams_in_server = [team for team in teams if team.server == ctx.message.server]
         if teams_in_server:
-            team_list = 'Current teams in {0}:\n'.format(ctx.message.server) + ''.join(
+            team_list = f'Current teams in {ctx.message.server}:\n' + ''.join(
                 sorted(':small_blue_diamond:' + team.name + '\n' for team in teams_in_server))
             await self.bot.say(team_list)
         else:
@@ -130,16 +131,17 @@ class Tournament:
         team = get_team(ctx.message.author, ctx.message.server)
         if team is not None:
             if new_captain is None:
-                await self.bot.say("{0} is the captain of your team, {1}".format(team.captain, team.name))
+                await self.bot.say(f"{team.captain.nick if team.captain.nick else team.captain.name} "
+                                   f"is the captain of your team, {team.name}")
                 return
             if team.captain == ctx.message.author:
                 if get_player(new_captain, ctx.message.server) in team.members:
                     team.captain = new_captain
-                    await self.bot.say("New team captain of {0}: {1}".format(team, new_captain))
+                    await self.bot.say(f"New team captain of {team.name}: {new_captain}")
                 else:
-                    await self.bot.say("{0} isn't in your team!".format(new_captain))
+                    await self.bot.say(f"{new_captain} isn't in your team!")
             else:
-                await self.bot.say("You aren't captain of {0}".format(team.name))
+                await self.bot.say(f"You aren't captain of {team.name}")
         else:
             await self.bot.say("You're not in a team!")
 
@@ -152,7 +154,8 @@ class Tournament:
             if team.name == name:
                 player = Player(ctx.message.author, ctx.message.server)
                 team.members.append(player)
-                await self.bot.say("{0} joined the team {1}!".format(ctx.message.author, name))
+                author = ctx.message.author
+                await self.bot.say(f"{author.nick if author.nick else author.name} joined the team {name}!")
                 return
         await self.bot.say("That doesn't seem to be a team!")
 
@@ -173,12 +176,12 @@ class Tournament:
                 return
             if ctx.message.author == member_team.captain:
                 await self.bot.say(
-                    "You're the captain of {0}! You should defer captainship to one of your teammates with !captain @user.\nTeam members:\n".format(
-                        member_team) + "".join(
+                    f"You're the captain of {member_team}! You should defer captainship to one of your teammates with "
+                    f"!captain @user.\nTeam members:\n" + "".join(
                         [":small_blue_diamond:" + str(member) + "\n" for member in member_team.members]))
                 return
             member_team.members.remove(get_player(ctx.message.author, ctx.message.server))
-            await self.bot.say("Left {0}!".format(name))
+            await self.bot.say(f"Left {name}!")
             return
 
         await self.bot.say("You're not in a team by that name.")
@@ -195,7 +198,7 @@ class Tournament:
             return
         if teams_in_game is None:
             await self.bot.say("Please enter the teams that will be playing in this tournament, "
-                          "separated by spaces")
+                               "separated by spaces")
             msg = await self.bot.wait_for_message(author=ctx.message.author)
             team_names = msg.content.split(" ")
         else:
@@ -207,10 +210,9 @@ class Tournament:
         for teamname in team_names:
             teams_in_game.append(serialize_team(teamname, ctx.message.server))
         for team in teams_in_game:
-            if team not in teams:
-                await self.bot.say("{0} isn't a team. Make sure to check your spelling! Teams currently "
-                              "in this server are:\n".format(team)
-                              + "".join([":small_blue_diamond:" + t_.name + "\n" for t_ in teams]))
+            if team is None:
+                await self.bot.say("Make sure to check your spelling! Teams currently in this server are:\n"
+                                   + "".join([":small_blue_diamond:" + t_.name + "\n" for t_ in teams]))
                 return
 
         await self.bot.say("Would you like bonus questions? Answer with yes or no.")
@@ -226,12 +228,12 @@ class Tournament:
         num_of_questions = int(msg.content)
         await bot.say("Tournament starting! Your setup is as follows:\n"
                       "Teams competing: " + ", ".join([t_.name for t_ in teams_in_game]) +
-                      "\nNumber of tossups: " + str(num_of_questions) +
-                      "\nBonus questions: " + str(bonus) +
+                      f"\nNumber of tossups: {num_of_questions}" +
+                      f"\nBonus questions: {bonus}" + 
                       "\nIf this is correct, type yes. If you'd like to edit something, type teams, tossups, or bonuses.")
 
         def check2(message):
-            return message.content in ["yes", "y", "ye", "yeet", "teams", "tossups", "bonuses"]
+            return message.content.lower() in ["yes", "y", "ye", "yeet", "teams", "tossups", "bonuses"]
 
         msg = await bot.wait_for_message(author=ctx.message.author, check=check2)
         if msg.content.lower() in ["yes", "y", "ye", "yeet"]:
@@ -245,8 +247,8 @@ class Tournament:
                 return
             for team in teams_in_game:
                 if team not in [t.name for t in teams]:
-                    await bot.say("{0} isn't a team. Make sure to check your spelling! Teams currently "
-                                  "in this server are:\n".format(team)
+                    await bot.say("Make sure to check your spelling! Teams currently "
+                                  "in this server are:\n"
                                   + "".join([":small_blue_diamond:" + t_.name + "\n" for t_ in teams]))
                     return
         elif msg.content.lower() == "tossups":
