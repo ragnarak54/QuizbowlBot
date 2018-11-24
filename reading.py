@@ -113,7 +113,7 @@ async def read_question(bot, bonus=False, playerlist=None, ms=False, category=No
         if not correct:
             await print_answer(bot, question_obj.formatted_answer, "</" in question_obj.formatted_answer)
             # await bot.say("The answer is {0}!".format(question_obj.answer))
-    if correct and playerlist:
+    if correct and bonus:
         await read_bonus(bot, msg.author, team)
     neggers.clear()
     msg = await bot.wait_for_message(timeout=10, content="n")
