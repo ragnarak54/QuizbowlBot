@@ -28,7 +28,7 @@ async def ping():
 
 @bot.command(pass_context=True, name="bonus", aliases=['b'])
 async def bonus_(ctx):
-    await reading.read_bonus(bot, ctx.message.author)
+    await reading.bonus(bot, ctx.message.author)
 
 
 @bot.command(pass_context=True, name="question", aliases=['q', 'tossup', 't'])
@@ -42,7 +42,7 @@ async def question_(ctx, *, category=None):
             if results[0][1] > 80:
                 category = results[0][0]
     print(category)
-    await reading.read_question(bot, category=category)
+    await reading.tossup(bot, ctx.message.channel, category=category)
 
 
 def get_matches(query, choices, limit=6):
