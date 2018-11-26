@@ -33,7 +33,6 @@ async def bonus_(ctx):
 
 @bot.command(pass_context=True, name="question", aliases=['q', 'tossup', 't'])
 async def question_(ctx, *, category=None):
-    print(category)
     if category:
         results = get_matches(category, categories)
         if category in aliases:
@@ -41,7 +40,10 @@ async def question_(ctx, *, category=None):
         elif category not in results:
             if results[0][1] > 80:
                 category = results[0][0]
-    print(category)
+            else:
+                await bot.say("Not sure what category you want. Try typing out the full name, or just do `?t` for "
+                              "a random category")
+                return
     await reading.tossup(bot, ctx.message.channel, category=category)
 
 
