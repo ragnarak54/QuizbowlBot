@@ -1,8 +1,60 @@
 import tournament
 import asyncio
 from fuzzywuzzy import fuzz
-import time
 import quizdb
+
+
+async def read_nums(bot, question_arr, sent_question, event):
+    try:
+        j = 0
+        for i in range(1, question_arr.__len__() // 5 + 1):
+            if not event.is_set():
+                sent_question_content = sent_question.content
+                sent_question = await bot.edit_message(sent_question,
+                                                       sent_question_content + " :bell:")
+            await event.wait()  # will block if a buzz is in progress
+            sent_question_content = sent_question.content
+            sent_question = await bot.edit_message(sent_question,
+                                                   sent_question_content + " " + " ".join(
+                                                       question_arr[i * 5:i * 5 + 5]))
+            j = i
+            await asyncio.sleep(1)
+        for i in range(0, 10):
+            if not event.is_set():
+                sent_question_content = sent_question.content
+                sent_question = await bot.edit_message(sent_question,
+                                                       sent_question_content + " :bell:")
+            await event.wait()
+            await asyncio.sleep(0.5)
+    except asyncio.CancelledError:
+        print("buzzed")
+    finally:
+        print("done reading")
+        sent_question_content = sent_question.content
+        await bot.edit_message(sent_question, sent_question_content + " " + " ".join(question_arr[j * 5 + 5:]))
+        # edit question to full
+
+        return 1
+
+async def get_buzz(bot, event, channel, check):
+    try:
+        await asyncio.sleep(1)
+        msg = await bot.wait_for_message(channel=channel, check=check)
+        if "skip" in msg.content:
+            return msg
+        event.clear()  # pause
+        print("buzzed")
+        await bot.send_message(channel, f"buzz from {msg.author}! 10 seconds to answer")
+        answer = await bot.wait_for_message(timeout=10, author=msg.author)
+        return answer
+    except asyncio.CancelledError:
+        return None
+
+
+async def timeout(buzz, reading):
+    while not reading.done():
+        await asyncio.sleep(0.5)
+    buzz.cancel()
 
 async def read_question(bot, bonus=False, playerlist=None, ms=False, category=None):
     # print([str(player) for player in playerlist])
@@ -17,106 +69,63 @@ async def read_question(bot, bonus=False, playerlist=None, ms=False, category=No
     print(question_obj.category)
     question_arr = question_obj.text.split(" ")
     sent_question = await bot.say(" ".join(question_arr[:5]))
+    print(sent_question.channel)
     await asyncio.sleep(1)
-    for i in range(1, question_arr.__len__() // 5 + 1):
-        sent_question_content = sent_question.content
-        sent_question = await bot.edit_message(sent_question,
-                                               sent_question_content + " " + " ".join(question_arr[i * 5:i * 5 + 5]))
+    i = 0
+    event = asyncio.Event()
+    event.set()
+    loop = asyncio.get_event_loop()
 
-        def check(message):
-            if not playerlist:
-                return message.author not in neggers and ("buzz" in message.content.lower() or "skip" in message.content.lower())
-            return tournament.get_player(message.author, message.server) in playerlist and message.author not in neggers and "buzz" in message.content.lower()
+    def check(message):
+        if not playerlist:
+            return message.author not in neggers and (
+            "buzz" in message.content.lower() or "skip" in message.content.lower())
+        return tournament.get_player(message.author,
+                                     message.server) in playerlist and message.author not in neggers and "buzz" in message.content.lower()
 
-        msg = None
-        msg = await bot.wait_for_message(timeout=1, check=check)
-        if msg is not None:
-            if "skip" in msg.content:
-                await bot.edit_message(sent_question, question_obj.text)
-                skip = True
-                break
-            sent_question_content = sent_question.content
-            sent_question = await bot.edit_message(sent_question, sent_question_content + " :bell: ")
-            await bot.say(f"buzz from {msg.author}! 10 seconds to answer")
-            answer = await bot.wait_for_message(timeout=10, author=msg.author)
-            if answer is not None:
-                matched = match(answer.content, question_obj.formatted_answer, "</" in question_obj.formatted_answer)
-                if matched == "p":
-                    await bot.say("prompt")
-                    answer = await bot.wait_for_message(timeout=10, author=msg.author)
-                    matched = match(answer.content, question_obj.formatted_answer,
-                                    "</" in question_obj.formatted_answer, is_prompt=True)
-                if matched == "y":
-                    await bot.say("correct!")
-                    await print_answer(bot, question_obj.formatted_answer, True)
-                    correct = True
-                    sent_question_content = sent_question.content
-                    await bot.edit_message(sent_question, sent_question_content + " " + " ".join(question_arr[i * 5+5:]))
-                    if playerlist:
-                        team = tournament.get_team(msg.author, msg.author.server)
-                        player = tournament.get_player(msg.author, msg.author.server)
-                        team.score += 20
-                        player.score += 20
-                    break
-                else:
-                    await bot.say("incorrect!")
-                    sent_question = await bot.say(sent_question.content)
-            else:
-                await bot.say("Time's up!")
-                sent_question = await bot.say(sent_question_content)
-                await asyncio.sleep(1)
-    wait_time = 7
-    print(question_obj.formatted_answer)
-    if skip:
-        await print_answer(bot, question_obj.formatted_answer, "</" in question_obj.formatted_answer)
-    elif not correct:
+    buzz = loop.create_task(get_buzz(bot, event, sent_question.channel, check))
+    reading = loop.create_task(read_nums(bot, question_arr, sent_question, event))
 
-        while wait_time > 0:
-            timer = time.time()
-            msg = None
-            if wait_time < 1:
-                msg = await bot.wait_for_message(timeout=int(1), check=check)
-            else:
-                msg = await bot.wait_for_message(timeout=int(wait_time), check=check)
-            wait_time -= (time.time() - timer)
-            if wait_time < 0.5:
-                break
-            if msg is not None:
-                await bot.edit_message(sent_question, sent_question.content + " :bell: ")
-                await bot.say(f"buzz from {msg.author}! 10 seconds to answer")
-                answer = None
-                answer = await bot.wait_for_message(timeout=10, author=msg.author)
-                if answer is not None:
-                    matched = match(answer.content, question_obj.formatted_answer,
-                                    "</" in question_obj.formatted_answer)
-                    if matched == "p":
-                        await bot.say("prompt")
-                        answer = await bot.wait_for_message(timeout=10, author=msg.author)
-                        matched = match(answer.content, question_obj.formatted_answer,
-                                        "</" in question_obj.formatted_answer, is_prompt=True)
-                    if matched == "y":
-                        await bot.say("correct!")
-                        await print_answer(bot, question_obj.formatted_answer, True)
-                        correct = True
-                        if playerlist:
-                            team = tournament.get_team(msg.author, msg.author.server)
-                            player = tournament.get_player(msg.author, msg.author.server)
-                            team.score += 20
-                            player.score += 20
-                        break
-                    else:
-                        await bot.say("incorrect!")
-                else:
-                    await bot.say("Time's up!")
-                    await asyncio.sleep(1)
+    while not reading.done():
+        loop.create_task(timeout(buzz, reading))
+        buzz = await buzz
+        if not buzz:
+            break
+        if "skip" in buzz.content:
+            if not reading.done():
+                reading.cancel()
+            skip = True
+            break
+        matched = match(buzz.content, question_obj.formatted_answer, "</" in question_obj.formatted_answer)
+        if matched == "p":
+            await bot.say("prompt")
+            answer = await bot.wait_for_message(timeout=10, author=buzz.author)
+            matched = match(answer.content, question_obj.formatted_answer,
+                            "</" in question_obj.formatted_answer, is_prompt=True)
+        if matched == "y":
+            reading.cancel()
+            await bot.say("correct!")
+            await print_answer(bot, question_obj.formatted_answer, True)
+            correct = True
+            if playerlist:
+                team = tournament.get_team(buzz.author, buzz.author.server)
+                player = tournament.get_player(buzz.author, buzz.author.server)
+                team.score += 20
+                player.score += 20
+        else:
+            await bot.say("incorrect!")
+            neggers.append(buzz.author)
+            event.set()
+            await asyncio.sleep(0.75)
 
-        if not correct:
-            await print_answer(bot, question_obj.formatted_answer, "</" in question_obj.formatted_answer)
-            # await bot.say("The answer is {0}!".format(question_obj.answer))
+    if not correct:
+        await print_answer(bot, question_obj.formatted_answer, True)
+
+    print("finished reading")
     if correct and bonus:
-        await read_bonus(bot, msg.author, team)
+        await read_bonus(bot, buzz.author, team)
     neggers.clear()
-    msg = await bot.wait_for_message(timeout=10, content="n")
+    msg = await bot.wait_for_message(timeout=20, content="n")
     if msg is not None:
         await read_question(bot, ms=ms, category=category)
 
