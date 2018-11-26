@@ -229,7 +229,7 @@ class Tournament:
         await bot.say("Tournament starting! Your setup is as follows:\n"
                       "Teams competing: " + ", ".join([t_.name for t_ in teams_in_game]) +
                       f"\nNumber of tossups: {num_of_questions}" +
-                      f"\nBonus questions: {bonus}" + 
+                      f"\nBonus questions: {bonus}" +
                       "\nIf this is correct, type yes. If you'd like to edit something, type teams, tossups, or bonuses.")
 
         def check2(message):
@@ -272,7 +272,7 @@ class Tournament:
         for i in range(num_of_questions):
             await bot.say(f"Tossup {i+1} of {num_of_questions}:")
             await asyncio.sleep(1)
-            await reading.read_question(bot, bonus, playerlist)
+            await reading.tossup(bot, ctx.message.channel, bonus, playerlist)
 
         teams_in_game.sort(reverse=True, key=lambda x: x.score)
         await bot.say("Tournament over! Final leaderboard:\n" +
