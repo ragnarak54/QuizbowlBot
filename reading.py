@@ -4,15 +4,23 @@ from fuzzywuzzy import fuzz
 import quizdb
 
 
-async def read_nums(bot, question_arr, sent_question, event):
+async def read_tossup(bot, question_arr, channel, event):
     try:
+        sent_question = await bot.send_message(channel, " ".join(question_arr[:5]))
+        await asyncio.sleep(1)
         j = 0
-        for i in range(1, question_arr.__len__() // 5 + 1):
+        buzz = False
+        for i in range(1, len(question_arr) // 5 + 1):
             if not event.is_set():
+                buzz = True
                 sent_question_content = sent_question.content
                 sent_question = await bot.edit_message(sent_question,
                                                        sent_question_content + " :bell:")
             await event.wait()  # will block if a buzz is in progress
+            if buzz:
+                buzz = False
+                sent_question = await bot.send_message(channel, sent_question.content)
+                await asyncio.sleep(1)
             sent_question_content = sent_question.content
             sent_question = await bot.edit_message(sent_question,
                                                    sent_question_content + " " + " ".join(
@@ -34,9 +42,7 @@ async def read_nums(bot, question_arr, sent_question, event):
         await bot.edit_message(sent_question, sent_question_content + " " + " ".join(question_arr[j * 5 + 5:]))
         # edit question to full
 
-        return 1
-
-async def get_buzz(bot, event, channel, check):
+async def wait_for_buzz(bot, event, channel, check):
     try:
         await asyncio.sleep(1)
         msg = await bot.wait_for_message(channel=channel, check=check)
@@ -54,12 +60,11 @@ async def get_buzz(bot, event, channel, check):
 async def timeout(buzz, reading):
     while not reading.done():
         await asyncio.sleep(0.5)
-    buzz.cancel()
+    if not buzz.done():
+        buzz.cancel()
 
-async def read_question(bot, bonus=False, playerlist=None, ms=False, category=None):
-    # print([str(player) for player in playerlist])
+async def tossup(bot, channel, is_bonus=False, playerlist=None, ms=False, category=None):
     correct = False
-    skip = False
     if not ms:
         question_obj = quizdb.get_tossups(category)
     else:
@@ -68,10 +73,6 @@ async def read_question(bot, bonus=False, playerlist=None, ms=False, category=No
     neggers = []
     print(question_obj.category)
     question_arr = question_obj.text.split(" ")
-    sent_question = await bot.say(" ".join(question_arr[:5]))
-    print(sent_question.channel)
-    await asyncio.sleep(1)
-    i = 0
     event = asyncio.Event()
     event.set()
     loop = asyncio.get_event_loop()
@@ -83,51 +84,52 @@ async def read_question(bot, bonus=False, playerlist=None, ms=False, category=No
         return tournament.get_player(message.author,
                                      message.server) in playerlist and message.author not in neggers and "buzz" in message.content.lower()
 
-    buzz = loop.create_task(get_buzz(bot, event, sent_question.channel, check))
-    reading = loop.create_task(read_nums(bot, question_arr, sent_question, event))
+    buzz = loop.create_task(wait_for_buzz(bot, event, channel, check))
+    reading = loop.create_task(read_tossup(bot, question_arr, channel, event))
 
     while not reading.done():
         loop.create_task(timeout(buzz, reading))
-        buzz = await buzz
-        if not buzz:
+        answer = await buzz
+
+        if not answer:
             break
-        if "skip" in buzz.content:
+        if "skip" in answer.content:
             if not reading.done():
                 reading.cancel()
-            skip = True
+                buzz.cancel()
             break
-        matched = match(buzz.content, question_obj.formatted_answer, "</" in question_obj.formatted_answer)
+        matched = match(answer.content, question_obj.formatted_answer, "</strong" in question_obj.formatted_answer)
         if matched == "p":
             await bot.say("prompt")
-            answer = await bot.wait_for_message(timeout=10, author=buzz.author)
+            answer = await bot.wait_for_message(timeout=10, author=answer.author)
             matched = match(answer.content, question_obj.formatted_answer,
-                            "</" in question_obj.formatted_answer, is_prompt=True)
+                            "</strong" in question_obj.formatted_answer, is_prompt=True)
         if matched == "y":
             reading.cancel()
             await bot.say("correct!")
             await print_answer(bot, question_obj.formatted_answer, True)
             correct = True
             if playerlist:
-                team = tournament.get_team(buzz.author, buzz.author.server)
-                player = tournament.get_player(buzz.author, buzz.author.server)
+                team = tournament.get_team(answer.author, answer.author.server)
+                player = tournament.get_player(answer.author, answer.author.server)
                 team.score += 20
                 player.score += 20
         else:
             await bot.say("incorrect!")
-            neggers.append(buzz.author)
+            neggers.append(answer.author)
             event.set()
             await asyncio.sleep(0.75)
+            buzz = loop.create_task(wait_for_buzz(bot, event, channel, check))
 
     if not correct:
         await print_answer(bot, question_obj.formatted_answer, True)
 
-    print("finished reading")
-    if correct and bonus:
-        await read_bonus(bot, buzz.author, team)
+    if correct and is_bonus:
+        await bonus(bot, answer.author, team)
     neggers.clear()
     msg = await bot.wait_for_message(timeout=20, content="n")
     if msg is not None:
-        await read_question(bot, ms=ms, category=category)
+        await tossup(bot, channel, ms=ms, category=category)
 
 
 def match(given, answer, formatted, is_prompt=False):
@@ -137,7 +139,7 @@ def match(given, answer, formatted, is_prompt=False):
     tag = False
     prompt = False
     if formatted:  # woohoo!
-        answer = answer.replace("<u>", "").replace("</u>", "").replace("<em>", "").replace("</em", "")
+        answer = answer.replace("<u>", "").replace("</u>", "").replace("<em>", "").replace("</em>", "")
         while i < len(answer):
             if answer[i] == '<' and (answer[i + 1:i + 7] == "strong" or answer[i + 1:i + 3] == "em") and not tag:
                 # found tag
@@ -168,6 +170,7 @@ def match(given, answer, formatted, is_prompt=False):
         else:
             return "n"
     else:
+        answer = answer.replace("<em>", "").replace("</em>", "")
         answers = answer.replace("The", "").split(" ")
         givens = given.split(" ")
         prompt = False
@@ -225,7 +228,7 @@ async def print_answer(bot, answer: str, formatted):
     await bot.say(printme)
 
 
-async def read_bonus(bot, author, team=None):
+async def bonus(bot, author, team=None):
     print(author)
     print(author.name)
 
