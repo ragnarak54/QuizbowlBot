@@ -4,7 +4,9 @@ from fuzzywuzzy import fuzz
 import quizdb
 
 
-async def read_tossup(bot, question_arr, channel, event):
+async def read_tossup(bot, question_obj, channel, event):
+    question_arr = question_obj.text.split(" ")
+    power = False
     try:
         sent_question = await bot.send_message(channel, " ".join(question_arr[:5]))
         await asyncio.sleep(1)
@@ -39,8 +41,11 @@ async def read_tossup(bot, question_arr, channel, event):
     finally:
         print("done reading")
         sent_question_content = sent_question.content
+        if "(*)" not in sent_question_content and question_obj.power:
+            power = True
         await bot.edit_message(sent_question, sent_question_content + " " + " ".join(question_arr[j * 5 + 5:]))
         # edit question to full
+        return power
 
 async def wait_for_buzz(bot, event, channel, check):
     try:
@@ -50,7 +55,8 @@ async def wait_for_buzz(bot, event, channel, check):
             return msg
         event.clear()  # pause
         print("buzzed")
-        await bot.send_message(channel, f"buzz from {msg.author}! 10 seconds to answer")
+        await bot.send_message(channel, f"buzz from {msg.author.name if not msg.author.nick else msg.author.nick}! "
+                                        f"10 seconds to answer")
         answer = await bot.wait_for_message(timeout=10, author=msg.author)
         return answer
     except asyncio.CancelledError:
@@ -71,7 +77,7 @@ async def tossup(bot, channel, is_bonus=False, playerlist=None, ms=False, catego
         question_obj = quizdb.get_ms()
     print(f'question from {question_obj.packet}, answer {question_obj.formatted_answer}')
     neggers = []
-    print(question_obj.category)
+    print(question_obj.category, question_obj.power)
     question_arr = question_obj.text.split(" ")
     event = asyncio.Event()
     event.set()
@@ -85,7 +91,7 @@ async def tossup(bot, channel, is_bonus=False, playerlist=None, ms=False, catego
                                      message.server) in playerlist and message.author not in neggers and "buzz" in message.content.lower()
 
     buzz = loop.create_task(wait_for_buzz(bot, event, channel, check))
-    reading = loop.create_task(read_tossup(bot, question_arr, channel, event))
+    reading = loop.create_task(read_tossup(bot, question_obj, channel, event))
 
     while not reading.done():
         loop.create_task(timeout(buzz, reading))
@@ -106,14 +112,19 @@ async def tossup(bot, channel, is_bonus=False, playerlist=None, ms=False, catego
                             "</strong" in question_obj.formatted_answer, is_prompt=True)
         if matched == "y":
             reading.cancel()
-            await bot.say("correct!")
+            await bot.say("correct - power!")
+            power = await reading
             await print_answer(bot, question_obj.formatted_answer, True)
             correct = True
             if playerlist:
                 team = tournament.get_team(answer.author, answer.author.server)
                 player = tournament.get_player(answer.author, answer.author.server)
-                team.score += 20
-                player.score += 20
+                if power:
+                    team.score += 25
+                    player.score += 25
+                else:
+                    team.score += 20
+                    player.score += 20
         else:
             await bot.say("incorrect!")
             neggers.append(answer.author)

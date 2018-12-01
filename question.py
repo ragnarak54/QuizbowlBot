@@ -1,9 +1,10 @@
 class Tossup:
-    def __init__(self, text, formatted_answer, category, packet, formatted_question=None):
+    def __init__(self, text, formatted_answer, category, packet, power, formatted_question=None):
         self.text = text
         self.formatted_answer = formatted_answer
         self.category = category
         self.packet = packet
+        self.power = power
         self.formatted_question = formatted_question
 
 
