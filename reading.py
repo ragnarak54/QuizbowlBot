@@ -78,7 +78,6 @@ async def tossup(bot, channel, is_bonus=False, playerlist=None, ms=False, catego
     print(f'question from {question_obj.packet}, answer {question_obj.formatted_answer}')
     neggers = []
     print(question_obj.category, question_obj.power)
-    question_arr = question_obj.text.split(" ")
     event = asyncio.Event()
     event.set()
     loop = asyncio.get_event_loop()
@@ -98,7 +97,7 @@ async def tossup(bot, channel, is_bonus=False, playerlist=None, ms=False, catego
         answer = await buzz
 
         if not answer:
-            break
+            continue
         if "skip" in answer.content:
             if not reading.done():
                 reading.cancel()
@@ -112,8 +111,11 @@ async def tossup(bot, channel, is_bonus=False, playerlist=None, ms=False, catego
                             "</strong" in question_obj.formatted_answer, is_prompt=True)
         if matched == "y":
             reading.cancel()
-            await bot.say("correct - power!")
             power = await reading
+            if power:
+                await bot.say("correct - power!")
+            else:
+                await bot.say("correct!")
             await print_answer(bot, question_obj.formatted_answer, True)
             correct = True
             if playerlist:
@@ -138,9 +140,10 @@ async def tossup(bot, channel, is_bonus=False, playerlist=None, ms=False, catego
     if correct and is_bonus:
         await bonus(bot, answer.author, team)
     neggers.clear()
-    msg = await bot.wait_for_message(timeout=20, content="n")
-    if msg is not None:
-        await tossup(bot, channel, ms=ms, category=category)
+    if not playerlist:
+        msg = await bot.wait_for_message(timeout=20, content="n")
+        if msg is not None:
+            await tossup(bot, channel, ms=ms, category=category)
 
 
 def match(given, answer, formatted, is_prompt=False):
@@ -304,3 +307,5 @@ async def bonus(bot, author, team=None):
             await asyncio.sleep(1)
         if not correct:
             await print_answer(bot, bonus_obj.formatted_answers[j], "</" in formatted)
+
+    print("done with bonus!")
