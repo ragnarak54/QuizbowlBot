@@ -279,9 +279,18 @@ class Tournament:
                       "".join([":small_blue_diamond:" + t.name + ": " + str(t.score) + " points!\n" for t in
                                teams_in_game]))
 
-    @commands.command()
-    async def testing(self):
-        await reading.read_question(self.bot)
+    @commands.command(pass_context=True)
+    async def score(self, ctx):
+        team = get_team(ctx.message.author, ctx.message.server)
+        if team:
+            await self.bot.say(f"Your team has {team.score} points!")
+
+    @commands.command(pass_context=True)
+    async def scores(self, ctx):
+        scores = ""
+        for team in [x for x in teams if x.server == ctx.message.server]:
+            scores += f':small_blue_diamond:{team.name}: {team.score} points\n'
+        await self.bot.say(scores)
 
 
 def setup(bot):
