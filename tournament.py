@@ -197,23 +197,24 @@ class Tournament:
             await self.bot.say("You can't start a tournament unless you're a team captain.")
             return
         if teams_in_game is None:
-            await self.bot.say("Please enter the teams that will be playing in this tournament, "
-                               "separated by spaces")
-            msg = await self.bot.wait_for_message(author=ctx.message.author)
-            team_names = msg.content.split(" ")
+            teams_in_game = [x for x in teams if x.server == ctx.message.server]
+            for x in teams_in_game:
+                x.score = 0
+            string = 'Starting tournament with:\n' + "".join([f':small_blue_diamond: {x.name} \n' for x in teams_in_game])
+            await self.bot.say(string)
         else:
             team_names = teams_in_game.split(" ")
-        if len(team_names) < 2:
-            await self.bot.say("You must have at least 2 teams to have a tournament!")
-            return
-        teams_in_game = []
-        for teamname in team_names:
-            teams_in_game.append(serialize_team(teamname, ctx.message.server))
-        for team in teams_in_game:
-            if team is None:
-                await self.bot.say("Make sure to check your spelling! Teams currently in this server are:\n"
-                                   + "".join([":small_blue_diamond:" + t_.name + "\n" for t_ in teams]))
+            if len(team_names) < 2:
+                await self.bot.say("You must have at least 2 teams to have a tournament!")
                 return
+            teams_in_game = []
+            for teamname in team_names:
+                teams_in_game.append(serialize_team(teamname, ctx.message.server))
+            for team in teams_in_game:
+                if team is None:
+                    await self.bot.say("Make sure to check your spelling! Teams currently in this server are:\n"
+                                       + "".join([":small_blue_diamond:" + t_.name + "\n" for t_ in teams]))
+                    return
 
         await self.bot.say("Would you like bonus questions? Answer with yes or no.")
         msg = await self.bot.wait_for_message(author=ctx.message.author)
@@ -279,11 +280,13 @@ class Tournament:
                       "".join([":small_blue_diamond:" + t.name + ": " + str(t.score) + " points!\n" for t in
                                teams_in_game]))
 
-    @commands.command(pass_context=True)
+    @commands.command(pass_context=True, aliases=['s'])
     async def score(self, ctx):
         team = get_team(ctx.message.author, ctx.message.server)
+        player = get_player(ctx.message.author, ctx.message.server)
         if team:
-            await self.bot.say(f"Your team has {team.score} points!")
+            await self.bot.say(f"Your team has {team.score} points!\n"
+                               f"You've scored {player.score} of them.")
 
     @commands.command(pass_context=True)
     async def scores(self, ctx):
