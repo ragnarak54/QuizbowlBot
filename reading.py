@@ -14,6 +14,8 @@ async def read_tossup(bot, question_obj, channel, event):
         j = 0
         buzz = False
         for i in range(1, len(question_arr) // 5 + 1):
+            if event.negged:
+                print("negged!")
             if not event.is_set():
                 buzz = True
                 sent_question_content = sent_question.content
@@ -22,7 +24,8 @@ async def read_tossup(bot, question_obj, channel, event):
             await event.wait()  # will block if a buzz is in progress
             if buzz:
                 buzz = False
-                sent_question = await bot.send_message(channel, sent_question.content)
+                sent_question = await bot.send_message(channel, sent_question.content.replace(" :bell:", " :no_bell:"))
+                event.negged = False
                 await asyncio.sleep(1)
             sent_question_content = sent_question.content
             sent_question = await bot.edit_message(sent_question,
@@ -30,6 +33,7 @@ async def read_tossup(bot, question_obj, channel, event):
                                                        question_arr[i * 5:i * 5 + 5]))
             j = i
             await asyncio.sleep(1)
+        event.over = True
         for i in range(0, 10):
             if not event.is_set():
                 sent_question_content = sent_question.content
@@ -56,8 +60,7 @@ async def wait_for_buzz(bot, event, channel, check):
             return msg
         event.clear()  # pause
         print("buzzed")
-        await bot.send_message(channel, f"buzz from {msg.author.name if not msg.author.nick else msg.author.nick}! "
-                                        f"10 seconds to answer")
+        await bot.send_message(channel, f"buzz from {msg.author.mention}! 10 seconds to answer")
         answer = await bot.wait_for_message(timeout=10, author=msg.author)
         return answer if answer else msg.author
     except asyncio.CancelledError:
@@ -80,6 +83,8 @@ async def tossup(bot, channel, is_bonus=False, playerlist=None, ms=False, catego
     print(question_obj.category, question_obj.power)
     event = asyncio.Event()
     event.set()
+    event.negged = False
+    event.over = False
     loop = asyncio.get_event_loop()
 
     def check(message):
@@ -141,6 +146,12 @@ async def tossup(bot, channel, is_bonus=False, playerlist=None, ms=False, catego
             await bot.say("incorrect!")
             neg_list.append(answer.author)
             event.set()
+            event.negged = True
+            if not event.over and playerlist:
+                team = tournament.get_team(answer.author, answer.author.server)
+                player = tournament.get_player(answer.author, answer.author.server)
+                team.score -= 5
+                player.score -= 5
             await asyncio.sleep(0.75)
 
     if not correct:
@@ -174,7 +185,7 @@ def match(given, answer, formatted, is_prompt=False):
                 marker = i
             # now in strong portion
             if answer[i] == '<' and (answer[i + 1:i + 8] == "/strong" or answer[i + 1:i + 4] == "/em") and tag:
-                strong.append(answer[marker:i])
+                strong.append(answer[marker:i].strip())
                 tag = False
             i += 1
 
@@ -317,5 +328,3 @@ async def bonus(bot, author, team=None):
             await asyncio.sleep(1)
         if not correct:
             await print_answer(bot, bonus_obj.formatted_answers[j], "</" in formatted)
-
-    print("done with bonus!")
