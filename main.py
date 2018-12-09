@@ -52,9 +52,9 @@ def get_matches(query, choices, limit=6):
     return results
 
 
-@bot.command()
-async def ms():
-    await reading.read_question(bot, ms=True)
+@bot.command(pass_context=True)
+async def ms(ctx):
+    await reading.tossup(bot, ctx.message.channel, ms=True)
 
 
 @bot.command()

@@ -68,4 +68,4 @@ def get_ms(number=1):
     cursor.close()
     conn.close()
 
-    return question.Tossup(unescape(data[0]), unescape(data[1]), data[2], data[3])
+    return question.Tossup(unescape(data[0]), unescape(data[1]), data[2], data[3], "(*)" in unescape(data[0]))
