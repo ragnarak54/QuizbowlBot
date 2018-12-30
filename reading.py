@@ -35,11 +35,13 @@ async def read_tossup(bot, question_obj, channel, event):
             await asyncio.sleep(1)
         event.over = True
         for i in range(0, 10):
+            await asyncio.sleep(0.5)
             if not event.is_set():
                 sent_question_content = sent_question.content
                 sent_question = await bot.edit_message(sent_question,
                                                        sent_question_content + " :bell:")
-            await asyncio.sleep(0.5)
+                print("Added bell")
+
             await event.wait()
 
     except asyncio.CancelledError:
@@ -104,7 +106,7 @@ async def tossup(bot, channel, is_bonus=False, playerlist=None, ms=False, catego
             break
         if isinstance(answer, discord.Member):
             buzz = loop.create_task(wait_for_buzz(bot, event, channel, check))
-            await bot.say("Time's up!")
+            await bot.say("No answer!")
             neg_list.append(answer)
             event.set()
             continue
@@ -310,7 +312,10 @@ async def bonus(bot, author, team=None):
             if matched == "p":
                 await bot.say("prompt")
                 answer = await bot.wait_for_message(timeout=10, author=msg.author)
-                matched = match(answer.content, formatted, "</" in formatted, is_prompt=True)
+                if answer is None:
+                    await bot.say("Time's up!")
+                else:
+                    matched = match(answer.content, formatted, "</" in formatted, is_prompt=True)
             if matched == "y":
                 await bot.say("correct!")
                 await print_answer(bot, formatted, "</" in formatted)
@@ -320,7 +325,7 @@ async def bonus(bot, author, team=None):
                     player = tournament.get_player(msg.author, msg.author.server)
                     team.score += 10
                     player.score += 10
-            else:
+            elif matched == "n":
                 await bot.say("incorrect!")
                 print("incorrect")
         else:
