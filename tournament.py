@@ -65,236 +65,235 @@ def serialize_team(teamname, server):
             return team
 
 
-class Tournament:
+class Tournament(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @commands.command(name='group', pass_context=True)
+    @commands.command(name='group')
     async def group_(self, ctx, name):
-        bot = self.bot
         if any(each_group.name == name for each_group in groups):
-            await self.bot.say("That group already exists!")
+            await ctx.send("That group already exists!")
             return
-        groups.append(Group(name, [ctx.message.author]))
-        await bot.say(f'New group "{name}" created! Type !join {name} to join!')
+        groups.append(Group(name, [ctx.author]))
+        await ctx.send(f'New group "{name}" created! Type !join {name} to join!')
 
-    @commands.command(pass_context=True)
+    @commands.command()
     async def mygroup(self, ctx):
-        group = get_group(ctx.message.author)
+        group = get_group(ctx.author)
         if group is not None:
-            await self.bot.say(group.name)
+            await ctx.send(group.name)
         else:
-            await self.bot.say("You're not in a team.")
+            await ctx.send("You're not in a team.")
 
-    @commands.command(name="team", pass_context=True, aliases=["maketeam", "newteam"])
+    @commands.command(name="team", aliases=["maketeam", "newteam"])
     async def team_(self, ctx, name):
         if any(each_team.name == name for each_team in teams):
-            await self.bot.say("That team already exists!")
+            await ctx.send("That team already exists!")
             return
-        if get_team(ctx.message.author, ctx.message.server) is not None:
-            await self.bot.say("You're already in a team.")
+        if get_team(ctx.author, ctx.guild) is not None:
+            await ctx.send("You're already in a team.")
             return
         else:
-            player = Player(ctx.message.author, ctx.message.server)
+            player = Player(ctx.author, ctx.guild)
             players.append(player)
-        team = Team(ctx.message.server, name, ctx.message.author, [])
+        team = Team(ctx.guild, name, ctx.author, [])
         team.members.append(player)
         print(player)
         teams.append(team)
-        if ctx.message.author.nick:
-            await self.bot.say(
-                f'''New team "{name}" created! Type !join {name} to join {ctx.message.author.nick}'s team!''')
+        if ctx.author.nick:
+            await ctx.send(
+                f'''New team "{name}" created! Type !join {name} to join {ctx.author.nick}'s team!''')
         else:
-            await self.bot.say(
-                f'''New team "{name}" created! Type !join {name} to join {ctx.message.author.name}'s team!''')
+            await ctx.send(
+                f'''New team "{name}" created! Type !join {name} to join {ctx.author.name}'s team!''')
 
-    @commands.command(name="teams", pass_context=True, aliases=["listteams", "allteams"])
+    @commands.command(name="teams", aliases=["listteams", "allteams"])
     async def teams_(self, ctx):
-        teams_in_server = [team for team in teams if team.server == ctx.message.server]
+        teams_in_server = [team for team in teams if team.server == ctx.guild]
         if teams_in_server:
-            team_list = f'Current teams in {ctx.message.server}:\n' + ''.join(
+            team_list = f'Current teams in {ctx.guild}:\n' + ''.join(
                 sorted(':small_blue_diamond:' + team.name + '\n' for team in teams_in_server))
-            await self.bot.say(team_list)
+            await ctx.send(team_list)
         else:
-            await self.bot.say("No teams have been made in this server yet!")
+            await ctx.send("No teams have been made in this server yet!")
 
-    @commands.command(pass_context=True)
+    @commands.command()
     async def myteam(self, ctx):
-        team = get_team(ctx.message.author, ctx.message.server)
+        team = get_team(ctx.author, ctx.guild)
         if team is not None:
-            await self.bot.say(team.name)
+            await ctx.send(team.name)
         else:
-            await self.bot.say("You're not in a team.")
+            await ctx.send("You're not in a team.")
 
-    @commands.command(name="captain", pass_context=True)
+    @commands.command(name="captain")
     async def captain_(self, ctx, new_captain: discord.Member = None):
-        team = get_team(ctx.message.author, ctx.message.server)
+        team = get_team(ctx.author, ctx.guild)
         if team is not None:
             if new_captain is None:
-                await self.bot.say(f"{team.captain.nick if team.captain.nick else team.captain.name} "
-                                   f"is the captain of your team, {team.name}")
+                await ctx.send(f"{team.captain.nick if team.captain.nick else team.captain.name} "
+                               f"is the captain of your team, {team.name}")
                 return
-            if team.captain == ctx.message.author:
-                if get_player(new_captain, ctx.message.server) in team.members:
+            if team.captain == ctx.author:
+                if get_player(new_captain, ctx.guild) in team.members:
                     team.captain = new_captain
-                    await self.bot.say(f"New team captain of {team.name}: {new_captain}")
+                    await ctx.send(f"New team captain of {team.name}: {new_captain}")
                 else:
-                    await self.bot.say(f"{new_captain} isn't in your team!")
+                    await ctx.send(f"{new_captain} isn't in your team!")
             else:
-                await self.bot.say(f"You aren't captain of {team.name}")
+                await ctx.send(f"You aren't captain of {team.name}")
         else:
-            await self.bot.say("You're not in a team!")
+            await ctx.send("You're not in a team!")
 
-    @commands.command(pass_context=True)
+    @commands.command()
     async def join(self, ctx, name):
-        if get_player(ctx.message.author, ctx.message.server) is not None:
-            await self.bot.say("You're already in a team. Leave your team first if you want to join another one.")
+        if get_player(ctx.author, ctx.guild) is not None:
+            await ctx.send("You're already in a team. Leave your team first if you want to join another one.")
             return
         for team in teams:
             if team.name == name:
-                player = Player(ctx.message.author, ctx.message.server)
+                player = Player(ctx.author, ctx.guild)
                 team.members.append(player)
-                author = ctx.message.author
-                await self.bot.say(f"{author.nick if author.nick else author.name} joined the team {name}!")
+                author = ctx.author
+                await ctx.send(f"{author.nick if author.nick else author.name} joined the team {name}!")
                 return
-        await self.bot.say("That doesn't seem to be a team!")
+        await ctx.send("That doesn't seem to be a team!")
 
-    @commands.command(pass_context=True, aliases=['leaveteam'])
+    @commands.command(aliases=['leaveteam'])
     async def leave(self, ctx, name=None):
-        member_team = get_team(ctx.message.author, ctx.message.server)
+        member_team = get_team(ctx.author, ctx.guild)
+        print(member_team)
         if name is None:
             if member_team is None:
-                await self.bot.say("You're not in a team.")
+                await ctx.send("You're not in a team.")
                 return
 
         if member_team is not None and (member_team.name == name or name is None):
             if len(member_team.members) == 1:
-                await self.bot.say(
+                await ctx.send(
                     "You're the last person in the team!\nLeaving the team has deleted it. You can always create "
                     "a new one with !team <team name>.")
                 teams.remove(member_team)
                 return
-            if ctx.message.author == member_team.captain:
-                await self.bot.say(
+            if ctx.author == member_team.captain:
+                await ctx.send(
                     f"You're the captain of {member_team}! You should defer captainship to one of your teammates with "
                     f"!captain @user.\nTeam members:\n" + "".join(
                         [":small_blue_diamond:" + str(member) + "\n" for member in member_team.members]))
                 return
-            member_team.members.remove(get_player(ctx.message.author, ctx.message.server))
-            await self.bot.say(f"Left {name}!")
+            member_team.members.remove(get_player(ctx.author, ctx.guild))
+            await ctx.send(f"Left {name}!")
             return
 
-        await self.bot.say("You're not in a team by that name.")
+        await ctx.send("You're not in a team by that name.")
 
-    @commands.command(pass_context=True)
+    @commands.command()
     async def tournament(self, ctx, *, teams_in_game=None):
         bot = self.bot
-        caller_team = get_team(ctx.message.author, ctx.message.server)
+        caller_team = get_team(ctx.author, ctx.guild)
         if caller_team is None:
-            await self.bot.say("You should make or join a team first.")
+            await ctx.send("You should make or join a team first.")
             return
-        if caller_team.captain != ctx.message.author:
-            await self.bot.say("You can't start a tournament unless you're a team captain.")
+        if caller_team.captain != ctx.author:
+            await ctx.send("You can't start a tournament unless you're a team captain.")
             return
         if teams_in_game is None:
-            teams_in_game = [x for x in teams if x.server == ctx.message.server]
+            teams_in_game = [x for x in teams if x.server == ctx.guild]
             for x in teams_in_game:
                 x.score = 0
-            string = 'Starting tournament with:\n' + "".join([f':small_blue_diamond: {x.name} \n' for x in teams_in_game])
-            await self.bot.say(string)
+            string = 'Starting tournament with:\n' + "".join(
+                [f':small_blue_diamond: {x.name} \n' for x in teams_in_game])
+            await ctx.send(string)
         else:
             team_names = teams_in_game.split(" ")
             if len(team_names) < 2:
-                await self.bot.say("You must have at least 2 teams to have a tournament!")
+                await ctx.send("You must have at least 2 teams to have a tournament!")
                 return
             teams_in_game = []
             for teamname in team_names:
-                teams_in_game.append(serialize_team(teamname, ctx.message.server))
+                teams_in_game.append(serialize_team(teamname, ctx.guild))
             for team in teams_in_game:
                 if team is None:
-                    await self.bot.say("Make sure to check your spelling! Teams currently in this server are:\n"
-                                       + "".join([":small_blue_diamond:" + t_.name + "\n" for t_ in teams]))
+                    await ctx.send("Make sure to check your spelling! Teams currently in this server are:\n"
+                                   + "".join([":small_blue_diamond:" + t_.name + "\n" for t_ in teams]))
                     return
 
-        await self.bot.say("Would you like bonus questions? Answer with yes or no.")
-        msg = await self.bot.wait_for_message(author=ctx.message.author)
+        await ctx.send("Would you like bonus questions? Answer with yes or no.")
+        msg = await self.bot.wait_for('message', check=lambda x: x.author == ctx.author)
         if msg.content.lower() in ["yes", "y", "ye", "yeet"]:
             bonus = True
-            await self.bot.say("Bonus questions will be read.")
+            await ctx.send("Bonus questions will be read.")
         else:
             bonus = False
-            await self.bot.say("Bonus questions will not be read.")
-        await bot.say("How many tossup questions do you want (default is 20)?")
-        msg = await bot.wait_for_message(author=ctx.message.author)
+            await ctx.send("Bonus questions will not be read.")
+        await ctx.send("How many tossup questions do you want (default is 20)?")
+        msg = await bot.wait_for('message', check=lambda x: x.author == ctx.author)
         num_of_questions = int(msg.content)
-        await bot.say("Tournament starting! Your setup is as follows:\n"
-                      "Teams competing: " + ", ".join([t_.name for t_ in teams_in_game]) +
-                      f"\nNumber of tossups: {num_of_questions}" +
-                      f"\nBonus questions: {bonus}" +
-                      "\nIf this is correct, type yes. If you'd like to edit something, type teams, tossups, or bonuses.")
+        await ctx.send("Tournament starting! Your setup is as follows:\n"
+                       "Teams competing: " + ", ".join([t_.name for t_ in teams_in_game]) +
+                       f"\nNumber of tossups: {num_of_questions}" +
+                       f"\nBonus questions: {bonus}" +
+                       "\nIf this is correct, type yes. "
+                       "If you'd like to edit something, type teams, tossups, or bonuses.")
 
         def check2(message):
-            return message.content.lower() in ["yes", "y", "ye", "yeet", "teams", "tossups", "bonuses"]
+            return message.content.lower() in ["yes", "y", "ye", "yeet", "teams", "tossups",
+                                               "bonuses"] and message.author == ctx.author
 
-        msg = await bot.wait_for_message(author=ctx.message.author, check=check2)
+        msg = await bot.wait_for('message', check=check2)
         if msg.content.lower() in ["yes", "y", "ye", "yeet"]:
-            await bot.say("Tournament starting! Good luck!")
+            await ctx.send("Tournament starting! Good luck!")
         elif msg.content.lower() == "teams":
-            await bot.say("Alright, re-enter the list of teams competing, separated by spaces")
-            msg = await bot.wait_for_message(author=ctx.message.author)
+            await ctx.send("Alright, re-enter the list of teams competing, separated by spaces")
+            msg = await bot.wait_for('message', check=lambda x: x.author == ctx.author)
             teams_in_game = msg.content.split(" ")
             if teams_in_game.count() < 2:
-                await bot.say("You must have at least 2 teams to have a tournament!")
+                await ctx.send("You must have at least 2 teams to have a tournament!")
                 return
             for team in teams_in_game:
                 if team not in [t.name for t in teams]:
-                    await bot.say("Make sure to check your spelling! Teams currently "
-                                  "in this server are:\n"
-                                  + "".join([":small_blue_diamond:" + t_.name + "\n" for t_ in teams]))
+                    await ctx.send("Make sure to check your spelling! Teams currently "
+                                   "in this server are:\n"
+                                   + "".join([":small_blue_diamond:" + t_.name + "\n" for t_ in teams]))
                     return
         elif msg.content.lower() == "tossups":
-            await bot.say("Alright, re-enter the number of tossups you want.")
-            msg = await bot.wait_for_message(author=ctx.message.author)
+            await ctx.send("Alright, re-enter the number of tossups you want.")
+            msg = await bot.wait_for('message', check=lambda x: x.author == ctx.author)
             num_of_questions = int(msg.content)
         elif msg.content.lower() == "bonuses":
-            await bot.say("Alright, re-renter yes or no if you want bonuses or not.")
-            msg = await bot.wait_for_message(author=ctx.message.author)
+            await ctx.send("Alright, re-renter yes or no if you want bonuses or not.")
+            msg = await bot.wait_for('message', check=lambda x: x.author == ctx.author)
             if msg.content.lower() in ["yes", "y", "ye", "yeet"]:
                 bonus = True
-                await bot.say("Bonus questions will be read.")
+                await ctx.send("Bonus questions will be read.")
             else:
                 bonus = False
-                await bot.say("Bonus questions will not be read.")
+                await ctx.send("Bonus questions will not be read.")
         playerlist = []
         for t in teams_in_game:
             print(t.members)
             playerlist += t.members
         print(playerlist)
         for i in range(num_of_questions):
-            await bot.say(f"Tossup {i+1} of {num_of_questions}:")
+            await ctx.send(f"Tossup {i + 1} of {num_of_questions}:")
             await asyncio.sleep(1)
-            await reading.tossup(bot, ctx.message.channel, bonus, playerlist)
+            await reading.tossup(bot, ctx.channel, bonus, playerlist)
 
         teams_in_game.sort(reverse=True, key=lambda x: x.score)
-        await bot.say("Tournament over! Final leaderboard:\n" +
-                      "".join([":small_blue_diamond:" + t.name + ": " + str(t.score) + " points!\n" for t in
-                               teams_in_game]))
+        await ctx.send("Tournament over! Final leaderboard:\n" +
+                       "".join([":small_blue_diamond:" + t.name + ": " + str(t.score) + " points!\n" for t in
+                                teams_in_game]))
 
-    @commands.command(pass_context=True, aliases=['s'])
+    @commands.command(aliases=['s'])
     async def score(self, ctx):
-        team = get_team(ctx.message.author, ctx.message.server)
-        player = get_player(ctx.message.author, ctx.message.server)
+        team = get_team(ctx.author, ctx.guild)
+        player = get_player(ctx.author, ctx.guild)
         if team:
-            await self.bot.say(f"Your team has {team.score} points!\n"
-                               f"You've scored {player.score} of them.")
+            await ctx.send(f"Your team has {team.score} points!\n"
+                           f"You've scored {player.score} of them.")
 
-    @commands.command(pass_context=True)
+    @commands.command()
     async def scores(self, ctx):
         scores = ""
-        for team in [x for x in teams if x.server == ctx.message.server]:
+        for team in [x for x in teams if x.server == ctx.guild]:
             scores += f':small_blue_diamond:{team.name}: {team.score} points\n'
-        await self.bot.say(scores)
-
-
-def setup(bot):
-    bot.add_cog(Tournament(bot))
+        await ctx.send(scores)

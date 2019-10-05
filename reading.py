@@ -5,11 +5,11 @@ import quizdb
 import discord
 
 
-async def read_tossup(bot, question_obj, channel, event):
+async def read_tossup(question_obj, channel, event):
     question_arr = question_obj.text.split(" ")
     power = False
     try:
-        sent_question = await bot.send_message(channel, " ".join(question_arr[:5]))
+        sent_question = await channel.send(" ".join(question_arr[:5]))
         await asyncio.sleep(1)
         j = 0
         buzz = False
@@ -19,18 +19,15 @@ async def read_tossup(bot, question_obj, channel, event):
             if not event.is_set():
                 buzz = True
                 sent_question_content = sent_question.content
-                sent_question = await bot.edit_message(sent_question,
-                                                       sent_question_content + " :bell:")
+                await sent_question.edit(content=sent_question_content + " :bell:")
             await event.wait()  # will block if a buzz is in progress
             if buzz:
                 buzz = False
-                sent_question = await bot.send_message(channel, sent_question.content.replace(" :bell:", " :no_bell:"))
+                sent_question = await channel.send(sent_question.content.replace(" :bell:", " :no_bell:"))
                 event.negged = False
                 await asyncio.sleep(1)
             sent_question_content = sent_question.content
-            sent_question = await bot.edit_message(sent_question,
-                                                   sent_question_content + " " + " ".join(
-                                                       question_arr[i * 5:i * 5 + 5]))
+            await sent_question.edit(content=sent_question_content + " " + " ".join(question_arr[i * 5:i * 5 + 5]))
             j = i
             await asyncio.sleep(1)
         event.over = True
@@ -38,33 +35,33 @@ async def read_tossup(bot, question_obj, channel, event):
             await asyncio.sleep(0.5)
             if not event.is_set():
                 sent_question_content = sent_question.content
-                sent_question = await bot.edit_message(sent_question,
-                                                       sent_question_content + " :bell:")
-                print("Added bell")
-
+                await sent_question.edit(content=sent_question_content + " :bell:")
             await event.wait()
 
     except asyncio.CancelledError:
-        print("buzzed")
+        print("canceled")
     finally:
         print("done reading")
         sent_question_content = sent_question.content
         if "(*)" not in sent_question_content and question_obj.power:
             power = True
-        await bot.edit_message(sent_question, sent_question_content + " " + " ".join(question_arr[j * 5 + 5:]))
+        await sent_question.edit(content=sent_question_content + " " + " ".join(question_arr[j * 5 + 5:]))
         # edit question to full
         return power
 
+
 async def wait_for_buzz(bot, event, channel, check):
     try:
-        msg = await bot.wait_for_message(channel=channel, check=check)
+        msg = await bot.wait_for('message', check=check)
         if "skip" in msg.content:
             return msg
         event.clear()  # pause
-        print("buzzed")
-        await bot.send_message(channel, f"buzz from {msg.author.mention}! 10 seconds to answer")
-        answer = await bot.wait_for_message(timeout=10, author=msg.author)
-        return answer if answer else msg.author
+        await channel.send(f"buzz from {msg.author.mention}! 10 seconds to answer")
+        try:
+            answer = await bot.wait_for('message', timeout=10.0, check=lambda x: x.author == msg.author)
+        except asyncio.TimeoutError as e:
+            return msg.author
+        return answer
     except asyncio.CancelledError:
         return None
 
@@ -74,6 +71,7 @@ async def timeout(buzz, reading):
     if not buzz.done():
         buzz.cancel()
 
+
 async def tossup(bot, channel, is_bonus=False, playerlist=None, ms=False, category=None):
     correct = False
     if not ms:
@@ -82,7 +80,7 @@ async def tossup(bot, channel, is_bonus=False, playerlist=None, ms=False, catego
         question_obj = quizdb.get_ms()
     print(f'question from {question_obj.packet}, answer {question_obj.formatted_answer}')
     neg_list = []
-    print(question_obj.category, question_obj.power)
+    print(f'theme: {question_obj.category}, power={question_obj.power}')
     event = asyncio.Event()
     event.set()
     event.negged = False
@@ -90,14 +88,16 @@ async def tossup(bot, channel, is_bonus=False, playerlist=None, ms=False, catego
     loop = asyncio.get_event_loop()
 
     def check(message):
+        if message.channel != channel:
+            return False
         if not playerlist:
             return message.author not in neg_list and (
-            "buzz" in message.content.lower() or "skip" in message.content.lower())
-        return tournament.get_player(message.author,
-                                     message.server) in playerlist and message.author not in neg_list and "buzz" in message.content.lower()
+                    "buzz" in message.content.lower() or "skip" in message.content.lower())
+        return tournament.get_player(message.author, message.guild) in playerlist and message.author not in neg_list \
+               and "buzz" in message.content.lower()
 
     buzz = loop.create_task(wait_for_buzz(bot, event, channel, check))
-    reading = loop.create_task(read_tossup(bot, question_obj, channel, event))
+    reading = loop.create_task(read_tossup(question_obj, channel, event))
 
     while not reading.done():
         loop.create_task(timeout(buzz, reading))
@@ -106,7 +106,7 @@ async def tossup(bot, channel, is_bonus=False, playerlist=None, ms=False, catego
             break
         if isinstance(answer, discord.Member):
             buzz = loop.create_task(wait_for_buzz(bot, event, channel, check))
-            await bot.say("No answer!")
+            await channel.send("No answer!")
             neg_list.append(answer)
             event.set()
             continue
@@ -116,27 +116,29 @@ async def tossup(bot, channel, is_bonus=False, playerlist=None, ms=False, catego
                 reading.cancel()
                 buzz.cancel()
             break
+
         matched = match(answer.content, question_obj.formatted_answer, "</strong" in question_obj.formatted_answer)
         if matched == "p":
-            await bot.say("prompt")
-            answer = await bot.wait_for_message(timeout=10, author=answer.author)
-            if answer is None:
-                matched = "n"
-            else:
+            await channel.send("prompt")
+            try:
+                answer = await bot.wait_for('message', timeout=10, check=lambda x: x.author == answer.author)
                 matched = match(answer.content, question_obj.formatted_answer,
-                                 "</strong" in question_obj.formatted_answer, is_prompt=True)
+                                "</strong" in question_obj.formatted_answer, is_prompt=True)
+            except asyncio.TimeoutError:
+                matched = "n"
+
         if matched == "y":
             reading.cancel()
             power = await reading
             if power:
-                await bot.say("correct - power!")
+                await channel.send("correct - power!")
             else:
-                await bot.say("correct!")
-            await print_answer(bot, question_obj.formatted_answer, True)
+                await channel.send("correct!")
+            await print_answer(channel, question_obj.formatted_answer, True)
             correct = True
             if playerlist:
-                team = tournament.get_team(answer.author, answer.author.server)
-                player = tournament.get_player(answer.author, answer.author.server)
+                team = tournament.get_team(answer.author, answer.guild)
+                player = tournament.get_player(answer.author, answer.guild)
                 if power:
                     team.score += 15
                     player.score += 15
@@ -145,28 +147,31 @@ async def tossup(bot, channel, is_bonus=False, playerlist=None, ms=False, catego
                     player.score += 10
         else:
             buzz = loop.create_task(wait_for_buzz(bot, event, channel, check))
-            await bot.say("incorrect!")
+            await channel.send("incorrect!")
             neg_list.append(answer.author)
             event.set()
             event.negged = True
             if not event.over and playerlist:
-                team = tournament.get_team(answer.author, answer.author.server)
-                player = tournament.get_player(answer.author, answer.author.server)
+                team = tournament.get_team(answer.author, answer.guild)
+                player = tournament.get_player(answer.author, answer.guild)
                 team.score -= 5
                 player.score -= 5
             await asyncio.sleep(0.75)
 
     if not correct:
-        await bot.say("Time's up!")
-        await print_answer(bot, question_obj.formatted_answer, True)
+        await channel.send("Time's up!")
+        await print_answer(channel, question_obj.formatted_answer, True)
 
     if correct and is_bonus:
-        await bonus(bot, answer.author, team)
+        ctx = await bot.get_context(answer)
+        await bonus(bot, ctx, team)
     neg_list.clear()
     if not playerlist:
-        msg = await bot.wait_for_message(timeout=20, content="n")
-        if msg is not None:
+        try:
+            await bot.wait_for('message', timeout=20, check=lambda x: x.content == 'n')
             await tossup(bot, channel, ms=ms, category=category)
+        except asyncio.TimeoutError:
+            pass
 
 
 def match(given, answer, formatted, is_prompt=False):
@@ -224,9 +229,9 @@ def match(given, answer, formatted, is_prompt=False):
         return "n"
 
 
-async def print_answer(bot, answer: str, formatted):
+async def print_answer(channel, answer: str, formatted):
     if not formatted:
-        await bot.say(answer)
+        await channel.send(answer)
         return
     i = 0
     answer = answer.replace("<u>", "").replace("</u>", "")
@@ -262,74 +267,71 @@ async def print_answer(bot, answer: str, formatted):
                 break
             printme += answer[i]
         i += 1
-    await bot.say(printme)
+    await channel.send(printme)
 
 
-async def bonus(bot, author, team=None):
-    print(author)
-    print(author.name)
+async def bonus(bot, ctx, team=None):
 
     bonus_obj = quizdb.get_bonuses()
     print(bonus_obj.formatted_answers[0])
     if team:
-        await bot.say(f"Bonus for {team.name}:")
+        await ctx.send(f"Bonus for {team.name}:")
         await asyncio.sleep(1)
     if bonus_obj.leadin == "[missing]":
         bonus_obj.leadin = "For 10 points each:"
     question_arr = bonus_obj.leadin.split(" ")
-    sent_question = await bot.say(" ".join(question_arr[:5]))
+    sent_question = await ctx.send(" ".join(question_arr[:5]))
     await asyncio.sleep(1)
     for i in range(1, len(question_arr) // 5 + 1):
         sent_question_content = sent_question.content
-        sent_question = await bot.edit_message(sent_question,
-                                               sent_question_content + " " + " ".join(question_arr[i * 5:i * 5 + 5]))
+        await sent_question.edit(content=sent_question_content + " " + " ".join(question_arr[i * 5:i * 5 + 5]))
         print(sent_question.content)
         await asyncio.sleep(1)
 
     # leadin done
     def check(message):
         if not team:
-            return message.author == author
-        return tournament.get_player(message.author, message.server) in team.members
+            return message.author == ctx.author
+        return tournament.get_player(message.author, message.guild) in team.members
 
     for j in range(0, 3):
         correct = False
         question_arr = bonus_obj.texts[j].split(" ")
         formatted = bonus_obj.formatted_answers[j]
-        sent_question = await bot.say(" ".join(question_arr[:5]))
+        sent_question = await ctx.send(" ".join(question_arr[:5]))
         await asyncio.sleep(1)
         for i in range(1, len(question_arr) // 5 + 1):
             sent_question_content = sent_question.content
-            sent_question = await bot.edit_message(sent_question,
-                                                   sent_question_content + " " + " ".join(question_arr[i * 5:i * 5 + 5]))
+            await sent_question.edit(content=sent_question_content + " " + " ".join(question_arr[i * 5:i * 5 + 5]))
             await asyncio.sleep(1)
 
         msg = None
-        msg = await bot.wait_for_message(timeout=10, check=check)
-        if msg is not None:
+        try:
+            msg = await bot.wait_for('message', timeout=10, check=check)
             matched = match(msg.content, formatted,
                             "</" in formatted)
             if matched == "p":
-                await bot.say("prompt")
-                answer = await bot.wait_for_message(timeout=10, author=msg.author)
-                if answer is None:
-                    await bot.say("Time's up!")
-                else:
+                await ctx.send("prompt")
+                try:
+                    answer = await bot.wait_for('message', timeout=10, check=lambda x: x.author == msg.author)
                     matched = match(answer.content, formatted, "</" in formatted, is_prompt=True)
+                except asyncio.TimeoutError:
+                    await ctx.send("Time's up!")
+
             if matched == "y":
-                await bot.say("correct!")
-                await print_answer(bot, formatted, "</" in formatted)
+                await ctx.send("correct!")
+                await print_answer(ctx, formatted, "</" in formatted)
                 correct = True
                 if team:
-                    team = tournament.get_team(msg.author, msg.author.server)
-                    player = tournament.get_player(msg.author, msg.author.server)
+                    team = tournament.get_team(msg.author, msg.guild)
+                    player = tournament.get_player(msg.author, msg.guild)
                     team.score += 10
                     player.score += 10
             elif matched == "n":
-                await bot.say("incorrect!")
+                await ctx.send("incorrect!")
                 print("incorrect")
-        else:
-            await bot.say("Time's up!")
+        except asyncio.TimeoutError:
+            await ctx.send("Time's up!")
             await asyncio.sleep(1)
         if not correct:
-            await print_answer(bot, bonus_obj.formatted_answers[j], "</" in formatted)
+            await print_answer(ctx, bonus_obj.formatted_answers[j], "</" in formatted)

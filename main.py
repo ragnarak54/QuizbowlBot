@@ -4,10 +4,12 @@ import config
 import io
 import reading
 from fuzzywuzzy import process
+import tournament
 
 bot = commands.Bot(command_prefix=['!', '?'], description="Quiz bowl bot!")
 startup_extensions = ["tournament"]
-categories = ["mythology", "literature", "trash", "science", "history", "religion", "geography", "fine arts", "social science", "philosophy", "current events"]
+categories = ["mythology", "literature", "trash", "science", "history", "religion", "geography", "fine arts",
+              "social science", "philosophy", "current events"]
 aliases = {"lit": "literature", "myth": "mythology", "sci": "science", "geo": "geography", "art": "fine arts"}
 
 
@@ -22,16 +24,16 @@ async def on_ready():
 
 
 @bot.command()
-async def ping():
-    await bot.say("pong!")
-    
+async def ping(ctx):
+    await ctx.send("pong!")
 
-@bot.command(pass_context=True, name="bonus", aliases=['b'])
+
+@bot.command(name="bonus", aliases=['b'])
 async def bonus_(ctx):
-    await reading.bonus(bot, ctx.message.author)
+    await reading.bonus(bot, ctx)
 
 
-@bot.command(pass_context=True, name="question", aliases=['q', 'tossup', 't'])
+@bot.command(name="question", aliases=['q', 'tossup', 't'])
 async def question_(ctx, *, category=None):
     if category:
         results = get_matches(category, categories)
@@ -41,10 +43,10 @@ async def question_(ctx, *, category=None):
             if results[0][1] > 80:
                 category = results[0][0]
             else:
-                await bot.say("Not sure what category you want. Try typing out the full name, or just do `?t` for "
-                              "a random category")
+                await ctx.send("Not sure what category you want. Try typing out the full name, or just do `?t` for "
+                               "a random category")
                 return
-    await reading.tossup(bot, ctx.message.channel, category=category)
+    await reading.tossup(bot, ctx.channel, category=category)
 
 
 def get_matches(query, choices, limit=6):
@@ -52,23 +54,24 @@ def get_matches(query, choices, limit=6):
     return results
 
 
-@bot.command(pass_context=True)
+@bot.command()
 async def ms(ctx):
-    await reading.tossup(bot, ctx.message.channel, ms=True)
+    await reading.tossup(bot, ctx.channel, ms=True)
 
 
 @bot.command()
-async def testformat():
-    await bot.say("test :bell: test")
+async def testformat(ctx):
+    await ctx.send("test :bell: test")
 
 
 def owner_check():
     def predicate(ctx):
-        if ctx.message.author == bot.procUser:
+        if ctx.author == bot.procUser:
             return True
         else:
             print("AHHH")
             return False
+
     return commands.check(predicate)
 
 
@@ -84,20 +87,9 @@ async def message_test(ctx):
         buffer = io.BytesIO(f.read())
     print("got here")
     data = await bot.http.send_file(channel.id, buffer, guild_id=channel.server.id,
-                                       filename='res_img.png', embed=embed.to_dict())
+                                    filename='res_img.png', embed=embed.to_dict())
     returned_message = bot.connection._create_message(channel=channel, **data)
 
 
-@bot.command()
-@owner_check()
-async def ping_boss():
-    await bot.say("<@!208229380575592448>")
-
-if __name__ == "__main__":
-    for extension in startup_extensions:
-        try:
-            bot.load_extension(extension)
-        except Exception as e:
-            exc = '{}: {}'.format(type(e).__name__, e)
-            print('Failed to load extension {}\n{}'.format(extension, exc))
-    bot.run(config.token)
+bot.add_cog(tournament.Tournament(bot))
+bot.run(config.token)
