@@ -23,6 +23,16 @@ async def on_ready():
     print('------')
 
 
+@bot.event
+async def on_guild_join(guild):
+    if bot.procUser not in list(guild.members):
+        for channel in [x for x in guild.text_channels]:
+            if channel.permissions_for(guild.me).send_messages:
+                await channel.send("Please first invite my creator, ragnarak54#9413 so he can"
+                                   " help set the bot up for you!")
+        await guild.leave()
+
+
 @bot.command()
 async def ping(ctx):
     await ctx.send("pong!")
