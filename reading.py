@@ -168,7 +168,7 @@ async def tossup(bot, channel, is_bonus=False, playerlist=None, ms=False, catego
     neg_list.clear()
     if not playerlist:
         try:
-            await bot.wait_for('message', timeout=20, check=lambda x: x.content == 'n')
+            await bot.wait_for('message', timeout=20, check=lambda x: x.content == 'n' and x.channel == channel)
             await tossup(bot, channel, ms=ms, category=category)
         except asyncio.TimeoutError:
             pass
