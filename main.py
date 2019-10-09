@@ -107,5 +107,6 @@ async def message_test(ctx):
 
 bot.pool = bot.loop.run_until_complete(asyncpg.create_pool(config.psql))
 bot.add_cog(quizdb.DB(bot))
+bot.db = quizdb.DB(bot)
 bot.add_cog(tournament.Tournament(bot))
 bot.run(config.token)

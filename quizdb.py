@@ -48,4 +48,5 @@ class DB(commands.Cog):
                                      "join tournaments on tossups.tournament_id = tournaments.id and tournaments.difficulty = 1 "
                                      "join categories on tossups.category_id = categories.id "
                                      "order by random() limit {}".format(number))
+        data = data[0]
         return question.Tossup(unescape(data[0]), unescape(data[1]), data[2], data[3], "(*)" in unescape(data[0]))

@@ -75,9 +75,9 @@ async def timeout(buzz, reading):
 async def tossup(bot, channel, is_bonus=False, playerlist=None, ms=False, category=None):
     correct = False
     if not ms:
-        question_obj = quizdb.get_tossups(category)
+        question_obj = await bot.db.get_tossups(category)
     else:
-        question_obj = quizdb.get_ms()
+        question_obj = await bot.db.get_ms()
     print(f'question from {question_obj.packet}, answer {question_obj.formatted_answer}')
     neg_list = []
     print(f'theme: {question_obj.category}, power={question_obj.power}')
