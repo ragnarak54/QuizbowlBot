@@ -92,9 +92,9 @@ async def tossup(bot, channel, is_bonus=False, playerlist=None, ms=False, catego
             return False
         if not playerlist:
             return message.author not in neg_list and (
-                    "buzz" in message.content.lower() or "skip" in message.content.lower())
+                    message.content.lower() == "buzz" or message.content.lower() == "skip")
         return tournament.get_player(message.author, message.guild) in playerlist and message.author not in neg_list \
-               and "buzz" in message.content.lower()
+               and message.content.lower() == "buzz"
 
     buzz = loop.create_task(wait_for_buzz(bot, event, channel, check))
     reading = loop.create_task(read_tossup(question_obj, channel, event))
@@ -111,7 +111,7 @@ async def tossup(bot, channel, is_bonus=False, playerlist=None, ms=False, catego
             event.set()
             continue
 
-        if "skip" in answer.content:
+        if "skip" == answer.content:
             if not reading.done():
                 reading.cancel()
                 buzz.cancel()
@@ -271,7 +271,6 @@ async def print_answer(channel, answer: str, formatted):
 
 
 async def bonus(bot, ctx, team=None):
-
     bonus_obj = quizdb.get_bonuses()
     print(bonus_obj.formatted_answers[0])
     if team:
