@@ -1,10 +1,15 @@
+import io
+
+import asyncpg
 import discord
 from discord.ext import commands
-import config
-import io
-import reading
 from fuzzywuzzy import process
+
+import config
+import quizdb
+import reading
 import tournament
+
 
 bot = commands.Bot(command_prefix=['!', '?'], description="Quiz bowl bot!")
 startup_extensions = ["tournament"]
@@ -100,6 +105,7 @@ async def message_test(ctx):
                                     filename='res_img.png', embed=embed.to_dict())
     returned_message = bot.connection._create_message(channel=channel, **data)
 
-
+bot.pool = bot.loop.run_until_complete(asyncpg.create_pool(config.psql))
+bot.add_cog(quizdb.DB(bot))
 bot.add_cog(tournament.Tournament(bot))
 bot.run(config.token)
