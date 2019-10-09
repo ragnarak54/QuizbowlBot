@@ -86,7 +86,7 @@ class Tournament(commands.Cog):
             await ctx.send("You're not in a team.")
 
     @commands.command(name="team", aliases=["maketeam", "newteam"])
-    async def team_(self, ctx, name):
+    async def team_(self, ctx, *, name):
         if any(each_team.name == name for each_team in teams):
             await ctx.send("That team already exists!")
             return
@@ -145,7 +145,7 @@ class Tournament(commands.Cog):
             await ctx.send("You're not in a team!")
 
     @commands.command()
-    async def join(self, ctx, name):
+    async def join(self, ctx, *, name):
         if get_player(ctx.author, ctx.guild) is not None:
             await ctx.send("You're already in a team. Leave your team first if you want to join another one.")
             return
@@ -159,7 +159,7 @@ class Tournament(commands.Cog):
         await ctx.send("That doesn't seem to be a team!")
 
     @commands.command(aliases=['leaveteam'])
-    async def leave(self, ctx, name=None):
+    async def leave(self, ctx, *, name=None):
         member_team = get_team(ctx.author, ctx.guild)
         print(member_team)
         if name is None:
@@ -204,7 +204,7 @@ class Tournament(commands.Cog):
                 [f':small_blue_diamond: {x.name} \n' for x in teams_in_game])
             await ctx.send(string)
         else:
-            team_names = teams_in_game.split(" ")
+            team_names = [team.strip() for team in teams_in_game.split(",")]
             if len(team_names) < 2:
                 await ctx.send("You must have at least 2 teams to have a tournament!")
                 return
@@ -217,8 +217,11 @@ class Tournament(commands.Cog):
                                    + "".join([":small_blue_diamond:" + t_.name + "\n" for t_ in teams]))
                     return
 
+        def reply_check(message):
+            return ctx.author == message.author and ctx.channel == message.channel
+
         await ctx.send("Would you like bonus questions? Answer with yes or no.")
-        msg = await self.bot.wait_for('message', check=lambda x: x.author == ctx.author)
+        msg = await self.bot.wait_for('message', check=reply_check)
         if msg.content.lower() in ["yes", "y", "ye", "yeet"]:
             bonus = True
             await ctx.send("Bonus questions will be read.")
@@ -226,7 +229,7 @@ class Tournament(commands.Cog):
             bonus = False
             await ctx.send("Bonus questions will not be read.")
         await ctx.send("How many tossup questions do you want (default is 20)?")
-        msg = await bot.wait_for('message', check=lambda x: x.author == ctx.author)
+        msg = await bot.wait_for('message', check=reply_check)
         num_of_questions = int(msg.content)
         if num_of_questions > 50:
             num_of_questions = 50
@@ -245,8 +248,8 @@ class Tournament(commands.Cog):
         if msg.content.lower() in ["yes", "y", "ye", "yeet"]:
             await ctx.send("Tournament starting! Good luck!")
         elif msg.content.lower() == "teams":
-            await ctx.send("Alright, re-enter the list of teams competing, separated by spaces")
-            msg = await bot.wait_for('message', check=lambda x: x.author == ctx.author)
+            await ctx.send("Alright, re-enter the list of teams competing, separated by commas")
+            msg = await bot.wait_for('message', check=reply_check)
             teams_in_game = msg.content.split(" ")
             if teams_in_game.count() < 2:
                 await ctx.send("You must have at least 2 teams to have a tournament!")
@@ -259,11 +262,11 @@ class Tournament(commands.Cog):
                     return
         elif msg.content.lower() == "tossups":
             await ctx.send("Alright, re-enter the number of tossups you want.")
-            msg = await bot.wait_for('message', check=lambda x: x.author == ctx.author)
+            msg = await bot.wait_for('message', check=reply_check)
             num_of_questions = int(msg.content)
         elif msg.content.lower() == "bonuses":
             await ctx.send("Alright, re-renter yes or no if you want bonuses or not.")
-            msg = await bot.wait_for('message', check=lambda x: x.author == ctx.author)
+            msg = await bot.wait_for('message', check=reply_check)
             if msg.content.lower() in ["yes", "y", "ye", "yeet"]:
                 bonus = True
                 await ctx.send("Bonus questions will be read.")
