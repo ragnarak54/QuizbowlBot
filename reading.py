@@ -1,11 +1,9 @@
 import tournament
 import asyncio
 from fuzzywuzzy import fuzz
-import quizdb
-import discord
 
 
-async def read_tossup(question_obj, channel, event):
+async def read_tossup(bot, question_obj, channel, event):
     question_arr = question_obj.text.split(" ")
     power = False
     try:
@@ -28,7 +26,10 @@ async def read_tossup(question_obj, channel, event):
                 await asyncio.sleep(1)
             sent_question_content = sent_question.content
             await sent_question.edit(content=sent_question_content + " " + " ".join(question_arr[i * 5:i * 5 + 5]))
+            if question_obj.power and "(*)" in sent_question.content:
+                event.power_passed = True
             j = i
+            event.progress = i * 5.0 / len(question_arr)
             await asyncio.sleep(1)
         event.over = True
         for i in range(0, 10):
@@ -53,15 +54,9 @@ async def read_tossup(question_obj, channel, event):
 async def wait_for_buzz(bot, event, channel, check):
     try:
         msg = await bot.wait_for('message', check=check)
-        if "skip" in msg.content:
-            return msg
         event.clear()  # pause
         await channel.send(f"buzz from {msg.author.mention}! 10 seconds to answer")
-        try:
-            answer = await bot.wait_for('message', timeout=10.0, check=lambda x: x.author == msg.author)
-        except asyncio.TimeoutError as e:
-            return msg.author
-        return answer
+        return msg
     except asyncio.CancelledError:
         return None
 
@@ -72,7 +67,8 @@ async def timeout(buzz, reading):
         buzz.cancel()
 
 
-async def tossup(bot, channel, is_bonus=False, playerlist=None, ms=False, category=None):
+async def tossup(bot, ctx, is_bonus=False, playerlist=None, ms=False, category=None, in_tournament=False):
+    channel = ctx.channel
     correct = False
     if not ms:
         question_obj = await bot.db.get_tossups(category)
@@ -81,10 +77,13 @@ async def tossup(bot, channel, is_bonus=False, playerlist=None, ms=False, catego
     print(f'question from {question_obj.packet}, answer {question_obj.formatted_answer}')
     neg_list = []
     print(f'theme: {question_obj.category}, power={question_obj.power}')
+    pk_id = await bot.db.log_tossup(question_obj, ctx, in_tournament)
     event = asyncio.Event()
     event.set()
     event.negged = False
     event.over = False
+    event.power_passed = False
+    event.progress = 0
     loop = asyncio.get_event_loop()
 
     def check(message):
@@ -97,25 +96,30 @@ async def tossup(bot, channel, is_bonus=False, playerlist=None, ms=False, catego
                and message.content.lower() == "buzz"
 
     buzz = loop.create_task(wait_for_buzz(bot, event, channel, check))
-    reading = loop.create_task(read_tossup(question_obj, channel, event))
+    reading = loop.create_task(read_tossup(bot, question_obj, channel, event))
 
     while not reading.done():
         loop.create_task(timeout(buzz, reading))
-        answer = await buzz
-        if not answer:
+        action = await buzz
+        if not action:
             break
-        if isinstance(answer, discord.Member):
-            buzz = loop.create_task(wait_for_buzz(bot, event, channel, check))
-            await channel.send("No answer!")
-            neg_list.append(answer)
-            event.set()
-            continue
-
-        if "skip" == answer.content:
+        if "skip" == action.content:
             if not reading.done():
                 reading.cancel()
-                buzz.cancel()
+            buzz.cancel()
             break
+        # if we get here the action was a buzz
+        buzz_id = await bot.db.log_buzz(pk_id, action, int(event.progress*100))
+        print(pk_id)
+        try:
+            answer = await bot.wait_for('message', timeout=10.0, check=lambda x: x.author == action.author)
+        except asyncio.TimeoutError:
+            buzz = loop.create_task(wait_for_buzz(bot, event, channel, check))
+            await channel.send("No answer!")
+            neg_list.append(action.author)
+            event.set()
+            await bot.db.update_buzz(buzz_id, False)
+            continue
 
         matched = match(answer.content, question_obj.formatted_answer, "</strong" in question_obj.formatted_answer)
         if matched == "p":
@@ -136,20 +140,19 @@ async def tossup(bot, channel, is_bonus=False, playerlist=None, ms=False, catego
                 await channel.send("correct!")
             await print_answer(channel, question_obj.formatted_answer, True)
             correct = True
+            points = 15 if power else 10
             if playerlist:
                 team = tournament.get_team(answer.author, answer.guild)
                 player = tournament.get_player(answer.author, answer.guild)
-                if power:
-                    team.score += 15
-                    player.score += 15
-                else:
-                    team.score += 10
-                    player.score += 10
+                team.score += points
+                player.score += points
+            await bot.db.update_buzz(buzz_id, True, points)
         else:
             buzz = loop.create_task(wait_for_buzz(bot, event, channel, check))
             await channel.send("incorrect!")
             neg_list.append(answer.author)
             event.set()
+            await bot.db.update_buzz(buzz_id, False)
             event.negged = True
             if not event.over and playerlist:
                 team = tournament.get_team(answer.author, answer.guild)
@@ -271,7 +274,7 @@ async def print_answer(channel, answer: str, formatted):
 
 
 async def bonus(bot, ctx, team=None):
-    bonus_obj = quizdb.get_bonuses()
+    bonus_obj = await bot.db.get_bonuses()
     print(bonus_obj.formatted_answers[0])
     if team:
         await ctx.send(f"Bonus for {team.name}:")

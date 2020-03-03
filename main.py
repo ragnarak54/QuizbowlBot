@@ -61,7 +61,7 @@ async def question_(ctx, *, category=None):
                 await ctx.send("Not sure what category you want. Try typing out the full name, or just do `?t` for "
                                "a random category")
                 return
-    await reading.tossup(bot, ctx.channel, category=category)
+    await reading.tossup(bot, ctx, category=category)
 
 
 def get_matches(query, choices, limit=6):
