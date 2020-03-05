@@ -4,7 +4,7 @@ This is a bot for Discord that can be used to play [Quizbowl](https://www.naqt.c
 
 ## Getting Started
 
-This bot isn't currently in a production-ready state. If you want to set up a clone of the bot and database yourself, add me as a friend on Discord @ragnarak54#9413, and I'll help you get set up! You can also send me a message if you think I've been responsible enough to get around to deploying the bot somewhere and you think your use case is gentle enough not to break my sub-par code.
+This bot isn't currently public. If you think your use case is gentle enough not to break my sub-par code, or if you want to play around with the code yourself, feel free to add me as a friend on Discord @ragnarak54#9413 and send me a message and I can help you get set up.
 
 ## Using the bot
 
