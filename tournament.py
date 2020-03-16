@@ -87,8 +87,8 @@ class Tournament(commands.Cog):
 
     @commands.command(name="team", aliases=["maketeam", "newteam"])
     async def team_(self, ctx, *, name):
-        if any(each_team.name == name for each_team in teams):
-            await ctx.send("That team already exists!")
+        if any(each_team.name == name for each_team in teams if each_team.server == ctx.guild):
+            await ctx.send("That team already exists in this server!")
             return
         if get_team(ctx.author, ctx.guild) is not None:
             await ctx.send("You're already in a team.")
@@ -181,7 +181,7 @@ class Tournament(commands.Cog):
                         [":small_blue_diamond:" + str(member) + "\n" for member in member_team.members]))
                 return
             member_team.members.remove(get_player(ctx.author, ctx.guild))
-            await ctx.send(f"Left {name}!")
+            await ctx.send(f"Left {member_team.name}!")
             return
 
         await ctx.send("You're not in a team by that name.")
@@ -301,4 +301,7 @@ class Tournament(commands.Cog):
         scores = ""
         for team in [x for x in teams if x.server == ctx.guild]:
             scores += f':small_blue_diamond:{team.name}: {team.score} points\n'
-        await ctx.send(scores)
+        if not scores:
+            await ctx.send("There are no teams in this guild!")
+        else:
+            await ctx.send(scores)
