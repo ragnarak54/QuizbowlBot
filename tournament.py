@@ -34,7 +34,7 @@ class Player:
         self.score = score  # not used for any data/analysis, just per-game score
 
     def __str__(self):
-        return str(self.member.name)
+        return str(self.member.display_name)
 
 
 def get_group(member):
@@ -284,9 +284,11 @@ class Tournament(commands.Cog):
             await reading.tossup(bot, ctx, bonus, playerlist, in_tournament=True)
 
         teams_in_game.sort(reverse=True, key=lambda x: x.score)
-        await ctx.send("Tournament over! Final leaderboard:\n" +
-                       "".join([":small_blue_diamond:" + t.name + ": " + str(t.score) + " points!\n" for t in
-                                teams_in_game]))
+        leaderboard = "Tournament over! Final leaderboard:\n" + \
+                      "".join([f":small_blue_diamond: {t.name}: {t.score} points!\n"
+                               f"    {'    '.join([f':small_blue_diamond: {m}: {m.score}{chr(10)}' for m in t.members])}" for t in
+                               teams_in_game])
+        await ctx.send(leaderboard)
 
     @commands.command(aliases=['s'])
     async def score(self, ctx):
