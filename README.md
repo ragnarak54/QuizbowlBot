@@ -48,6 +48,11 @@ Once your teams are set, use the
 command to start the tournament dialogue. Choose your setting for bonuses and number of questions, then it begins!
 
 
+### Contributing
+
+If you send me a message on Discord, I'll be happy to consider any suggestions or feedback! Please feel free to contribute to the code directly with a pull request. If you want to contribute but (understandably) need help understanding the convoluted codebase, send me a message and I can get you started.
+
+
 ## Built With
 
 * [Python](https://www.python.org/)
