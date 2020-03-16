@@ -88,7 +88,8 @@ class Tournament(commands.Cog):
     @commands.command(name="team", aliases=["maketeam", "newteam"])
     async def team_(self, ctx, *, name=None):
         if not name:
-            pass
+            await ctx.invoke(self.bot.get_command("myteam"))
+            return
         if any(each_team.name == name for each_team in teams if each_team.server == ctx.guild):
             await ctx.send("That team already exists in this server!")
             return
@@ -125,7 +126,7 @@ class Tournament(commands.Cog):
         if team is not None:
             await ctx.send(f"You're in **{team.name}**, whose members are: \n    "
                            f"{'    '.join(f':small_blue_diamond: {m}{chr(10)}' for m in team.members)}"
-                           f"**{team.captain}** is the team's captain")
+                           f"**{team.captain.display_name}** is the team's captain")
         else:
             await ctx.send("You're not in a team.")
 
