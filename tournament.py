@@ -240,7 +240,7 @@ class Tournament(commands.Cog):
             num_of_questions = 50
         await ctx.send("Tournament starting! Your setup is as follows:\n"
                        "Teams competing: " + ", ".join([t_.name for t_ in teams_in_game]) +
-                       f"\nNumber of tossups: {num_of_questions} (maximum for a tourament)" +
+                       f"\nNumber of tossups: {num_of_questions}" +
                        f"\nBonus questions: {bonus}" +
                        "\nIf this is correct, type yes. "
                        "If you'd like to edit something, type teams, tossups, or bonuses.")
