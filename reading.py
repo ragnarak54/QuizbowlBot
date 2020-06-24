@@ -1,5 +1,6 @@
 import tournament
 import asyncio
+import random
 from fuzzywuzzy import fuzz
 
 
@@ -67,14 +68,25 @@ async def timeout(buzz, reading):
         buzz.cancel()
 
 
-async def tossup(bot, ctx, is_bonus=False, playerlist=None, ms=False, category=None, in_tournament=False):
+async def tossup(bot, ctx, is_bonus=False, playerlist=None, ms=False, category=None, in_tournament=False, q_id=None):
     channel = ctx.channel
     correct = False
-    if not ms:
-        question_obj = await bot.db.get_tossups(category)
+    if q_id:
+        question_obj = await bot.db.get_tossups(q_id=q_id)
+    elif not in_tournament and not category:
+        user_categories, user_difficulties = await bot.db.get_player_settings(ctx.author)
+        chosen_cat = None if not user_categories else random.choice(user_categories)
+        if not user_difficulties:
+            question_obj = await bot.db.get_tossups(category=chosen_cat)
+        else:
+            question_obj = await bot.db.get_tossups(category=chosen_cat, difficulty=random.choice(user_difficulties))
+        # get user prefs
+        # get tossup based on that (category, difficulty)
+    elif not ms:
+        question_obj = await bot.db.get_tossups(category=category)
     else:
         question_obj = await bot.db.get_ms()
-    print(f'question from {question_obj.packet}, answer {question_obj.formatted_answer}')
+    print(f'question id {question_obj.id} from {question_obj.packet}, answer {question_obj.formatted_answer}')
     neg_list = []
     print(f'theme: {question_obj.category}, power={question_obj.power}')
     pk_id = await bot.db.log_tossup(question_obj, ctx, in_tournament)
@@ -92,8 +104,8 @@ async def tossup(bot, ctx, is_bonus=False, playerlist=None, ms=False, category=N
         if not playerlist:
             return message.author not in neg_list and (
                     message.content.lower() == "buzz" or message.content.lower() == "skip")
-        return tournament.get_player(message.author, message.guild) in playerlist and message.author not in neg_list \
-               and message.content.lower() == "buzz"
+        return message.content.lower() == "buzz" and tournament.get_player(message.author, message.guild) in \
+               playerlist and not any(m in neg_list for m in tournament.get_team(message.author, message.guild).members)
 
     buzz = loop.create_task(wait_for_buzz(bot, event, channel, check))
     reading = loop.create_task(read_tossup(bot, question_obj, channel, event))
@@ -109,7 +121,7 @@ async def tossup(bot, ctx, is_bonus=False, playerlist=None, ms=False, category=N
             buzz.cancel()
             break
         # if we get here the action was a buzz
-        buzz_id = await bot.db.log_buzz(pk_id, action, int(event.progress*100))
+        buzz_id = await bot.db.log_buzz(pk_id, action, int(event.progress * 100))
         print(pk_id)
         try:
             answer = await bot.wait_for('message', timeout=10.0, check=lambda x: x.author == action.author)
@@ -169,10 +181,10 @@ async def tossup(bot, ctx, is_bonus=False, playerlist=None, ms=False, category=N
         ctx = await bot.get_context(answer)
         await bonus(bot, ctx, team)
     neg_list.clear()
-    if not playerlist:
+    if not playerlist and not q_id:
         try:
             await bot.wait_for('message', timeout=20, check=lambda x: x.content == 'n' and x.channel == channel)
-            await tossup(bot, channel, ms=ms, category=category)
+            await tossup(bot, ctx, ms=ms, category=category)
         except asyncio.TimeoutError:
             pass
 
