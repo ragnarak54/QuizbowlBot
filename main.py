@@ -105,6 +105,24 @@ async def message_test(ctx):
                                     filename='res_img.png', embed=embed.to_dict())
     returned_message = bot.connection._create_message(channel=channel, **data)
 
+
+@bot.command()
+@commands.is_owner()
+async def pyval(ctx, *, expr):
+    env = {
+        'ctx': ctx,
+        'bot': bot,
+        'channel': ctx.channel,
+        'author': ctx.author,
+        'guild': ctx.guild,
+        'message': ctx.message
+    }
+    try:
+        ret = eval(expr, env)
+    except Exception as e:
+        ret = e
+    await ctx.send(ret)
+
 bot.pool = bot.loop.run_until_complete(asyncpg.create_pool(config.psql))
 bot.add_cog(quizdb.DB(bot))
 bot.db = quizdb.DB(bot)
