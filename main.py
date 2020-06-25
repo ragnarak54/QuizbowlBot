@@ -16,6 +16,7 @@ startup_extensions = ["tournament"]
 categories = ["mythology", "literature", "trash", "science", "history", "religion", "geography", "fine arts",
               "social science", "philosophy", "current events"]
 aliases = {"lit": "literature", "myth": "mythology", "sci": "science", "geo": "geography", "art": "fine arts"}
+bot.current_channels = []
 
 
 @bot.event
