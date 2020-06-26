@@ -67,6 +67,20 @@ async def timeout(buzz, reading):
         buzz.cancel()
 
 
+def concurrency_check(func):
+    """Decorator to ensure that two questions aren't being read in the same channel at once"""
+    async def wrapper(*args, **kwargs):
+        bot, ctx = args
+        if ctx.channel not in bot.current_channels:
+            bot.current_channels.append(ctx.channel)
+            await func(*args, **kwargs)
+            bot.current_channels.remove(ctx.channel)
+        else:
+            await ctx.message.add_reaction('\U0000274c')
+    return wrapper
+
+
+@concurrency_check
 async def tossup(bot, ctx, is_bonus=False, playerlist=None, ms=False, category=None, in_tournament=False):
     channel = ctx.channel
     correct = False
@@ -169,12 +183,6 @@ async def tossup(bot, ctx, is_bonus=False, playerlist=None, ms=False, category=N
         ctx = await bot.get_context(answer)
         await bonus(bot, ctx, team)
     neg_list.clear()
-    if not playerlist:
-        try:
-            await bot.wait_for('message', timeout=20, check=lambda x: x.content == 'n' and x.channel == channel)
-            await tossup(bot, channel, ms=ms, category=category)
-        except asyncio.TimeoutError:
-            pass
 
 
 def match(given, answer, formatted, is_prompt=False):

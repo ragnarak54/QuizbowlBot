@@ -20,9 +20,9 @@ is the most basic command. The bot will start reading a question, and anyone in 
 
 If you're studying up on a certain category, you can put it after the tossup command, or any of its shortcuts, like `?q literature` (or even `?q lit`!) to get a tossup from that category.
 
-After a question is over, you can just type `n` within 15 seconds of the answer being read to get another question. The next question will have the same category restrictions as the previous one. So if you want to change your category restrictions, then start a new question with the `?tossup` aliases again. 
 
-You can also skip questions by typing `skip` while it's being read (as you would `buzz`). You can still get another question with `n` after skipping.
+
+You can also skip questions by typing `skip` while it's being read (as you would `buzz`).
 
 ```
 ?bonus
@@ -50,7 +50,7 @@ command to start the tournament dialogue. Choose your setting for bonuses and nu
 
 ### Contributing
 
-If you send me a message on Discord, I'll be happy to consider any suggestions or feedback! Please feel free to contribute to the code directly with a pull request. If you want to contribute but (understandably) need help understanding the convoluted codebase, send me a message and I can get you started.
+If you send me a message on Discord or raise an issue on Github, I'll be happy to consider any suggestions or feedback! Please feel free to contribute to the code directly with a pull request. If you want to contribute but need help understanding the convoluted codebase, send me a message and I can get you started.
 
 
 ## Built With
