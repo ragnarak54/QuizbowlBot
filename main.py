@@ -72,7 +72,7 @@ def get_matches(query, choices, limit=6):
 
 @bot.command()
 async def ms(ctx):
-    await reading.tossup(bot, ctx.channel, ms=True)
+    await reading.tossup(bot, ctx, ms=True)
 
 
 @bot.command()
