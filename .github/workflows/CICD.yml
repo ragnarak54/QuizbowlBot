@@ -29,15 +29,16 @@ jobs:
       uses: appleboy/ssh-action@v0.1.2
       with:
         # ssh host
-        host: ${{ secrets.HOST }} # optional
+        host: ${{ secrets.HOST }}
         # ssh username
-        username: ${{ secrets.USER }} # optional
+        username: ${{ secrets.USER }}
         # ssh password
-        key: ${{ secrets.KEY }} # optional
+        key: ${{ secrets.KEY }}
         # execute commands
         script: |
-          screen -r quizbowl # optional
+          screen -r quizbowl
           xdotool key ctrl+c
           xdotool key ctrl+c
           git pull
           python3.6 main.py
+          xdotool key ctrl+a+d
