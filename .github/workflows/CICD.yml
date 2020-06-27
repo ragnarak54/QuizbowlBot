@@ -36,7 +36,8 @@ jobs:
         key: ${{ secrets.KEY }}
         # execute commands
         script: |
-          cd QuizBowlBot
+          cd ~/QuizBowlBot
           git pull
-          kill $(ps aux | grep '[p]ython3.6 main.py flag' | awk '{print $2}')
+          kill -9 $(ps aux | grep '[p]ython3.6 main.py flag' | awk '{print $2}')
+          ps aux | grep python
           python3.6 main.py flag
