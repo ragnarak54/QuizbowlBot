@@ -39,5 +39,5 @@ jobs:
           cd ~/QuizbowlBot
           git pull
           kill -9 $(ps aux | grep '[p]ython3.6 main.py flag' | awk '{print $2}')
-          ps aux | grep python
+          screen -r quizbowl
           python3.6 main.py flag
