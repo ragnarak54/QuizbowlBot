@@ -36,9 +36,7 @@ jobs:
         key: ${{ secrets.KEY }}
         # execute commands
         script: |
-          screen -r quizbowl
-          xdotool key ctrl+c
-          xdotool key ctrl+c
+          cd QuizBowlBot
           git pull
-          python3.6 main.py
-          xdotool key ctrl+a+d
+          kill $(ps aux | grep '[p]ython3.6 main.py flag' | awk '{print $2}')
+          python3.6 main.py flag
