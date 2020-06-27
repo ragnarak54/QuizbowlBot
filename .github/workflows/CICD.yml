@@ -35,4 +35,6 @@ jobs:
         # ssh password
         key: ${{ secrets.KEY }}
         # execute commands
-        script: source ~/CICD/update_qbb.sh
+        script: |
+          cd ~/QuizbowlBot
+          source ~/CICD/update_qbb.sh
