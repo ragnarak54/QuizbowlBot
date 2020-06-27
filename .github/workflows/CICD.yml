@@ -35,9 +35,4 @@ jobs:
         # ssh password
         key: ${{ secrets.KEY }}
         # execute commands
-        script: |
-          cd ~/QuizbowlBot
-          pkill -f 'python3.6 main.py flag'
-          git pull
-          screen -r quizbowl
-          python3.6 main.py flag
+        script: source ~/CICD/update_qbb.sh
