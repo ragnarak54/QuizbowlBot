@@ -286,7 +286,7 @@ class Tournament(commands.Cog):
         for i in range(num_of_questions):
             await ctx.send(f"Tossup {i + 1} of {num_of_questions}:")
             await asyncio.sleep(1)
-            await reading.tossup(bot, ctx, bonus, playerlist, in_tournament=True)
+            await reading.tossup(bot, ctx, is_bonus=bonus, playerlist=playerlist, in_tournament=True)
 
         teams_in_game.sort(reverse=True, key=lambda x: x.score)
         leaderboard = "Tournament over! Final leaderboard:\n" + \
