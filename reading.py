@@ -73,8 +73,10 @@ def concurrency_check(func):
         bot, ctx = args
         if ctx.channel not in bot.current_channels:
             bot.current_channels.append(ctx.channel)
-            await func(*args, **kwargs)
-            bot.current_channels.remove(ctx.channel)
+            try:
+                await func(*args, **kwargs)
+            finally:
+                bot.current_channels.remove(ctx.channel)
         else:
             await ctx.message.add_reaction('\U0000274c')
     return wrapper
