@@ -76,9 +76,11 @@ async def ms(ctx):
     await reading.tossup(bot, ctx, ms=True)
 
 
-@bot.command()
-async def testformat(ctx):
-    await ctx.send("test :bell: test")
+@bot.command(aliases=['clr'])
+async def clear(ctx):
+    if ctx.channel in bot.current_channels:
+        bot.current_channels.remove(ctx.channel)
+    await ctx.send(f"{ctx.channel.mention} cleared")
 
 
 def owner_check():
