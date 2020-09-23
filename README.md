@@ -30,6 +30,8 @@ You can also skip questions by typing `skip` while it's being read (as you would
 
 Similar to `?tossup`, this command starts a bonus question. It's different in that only you can answer the questions. Staying true to real-life quizbowl, you don't buzz for bonuses. Simply wait until each part is done being read, and then type your answer. Shortcut `?b` also calls this command.
 
+The bot avoids concurrent questions in the same channel by maintaining a list of channels with questions active in them. If for some reason an error occurs during a question, the channel isn't always cleared from this blacklist. If you run into this issue, use the `?clear` command to manually free up the channel.
+
 ### Tournament play
 
 If you want to play with points and teams, then the first thing you need to do is make a team. Use
