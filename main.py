@@ -67,14 +67,30 @@ async def question_(ctx, *, category=None):
     await reading.tossup(bot, ctx, category=category)
 
 
+@bot.command(name="college", aliases=['c'])
+async def college(ctx, *, category=None):
+    if category:
+        results = get_matches(category, categories)
+        if category in aliases:
+            category = aliases[category]
+        elif category not in results:
+            if results[0][1] > 80:
+                category = results[0][0]
+            else:
+                await ctx.send("Not sure what category you want. Try typing out the full name, or just do `?t` for "
+                               "a random category")
+                return
+    await reading.tossup(bot, ctx, category=category, difficulties=[6, 7, 8])
+
+
 def get_matches(query, choices, limit=6):
     results = process.extract(query, choices, limit=limit)
     return results
 
 
 @bot.command()
-async def ms(ctx):
-    await reading.tossup(bot, ctx, ms=True)
+async def ms(ctx, *, category=None):
+    await reading.tossup(bot, ctx, category=category, difficulties=[1])
 
 
 @bot.command(aliases=['clr'])

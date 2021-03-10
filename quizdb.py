@@ -9,24 +9,21 @@ class DB(commands.Cog):
     def __init__(self, bot):
         self.conn = bot.pool
 
-    async def get_tossups(self, category=None, number=1):
-        if not category:
-            data = await self.conn.fetch(
-                "select tossups.id, tossups.text, tossups.formatted_answer, categories.name, tournaments.name from tossups "
-                "join tournaments on tossups.tournament_id = tournaments.id and tournaments.difficulty in (2,3,4,5) "
-                "join categories on tossups.category_id = categories.id "
-                "WHERE tossups.formatted_answer like '%<strong>%' or position(' ' in formatted_answer) <= 0 "
-                "or tossups.formatted_answer similar to '[a-zA-Z]+\s<[^strong^em^u>^b>]%'"
-                "ORDER BY RANDOM() LIMIT {}".format(number))
-        else:
-            data = await self.conn.fetch(
-                "select tossups.id, tossups.text, tossups.formatted_answer, categories.name, tournaments.name from tossups "
-                "join tournaments on tossups.tournament_id = tournaments.id and tournaments.difficulty in (2,3,4,5) "
-                "join categories on tossups.category_id = categories.id "
-                "WHERE (tossups.formatted_answer like '%<strong>%' or position(' ' in formatted_answer) <= 0 "
+    async def get_tossups(self, difficulties, category=None, number=1):
+        query = f"select tossups.id, tossups.text, tossups.formatted_answer, categories.name, tournaments.name from tossups " \
+                f"join tournaments on tossups.tournament_id = tournaments.id and tournaments.difficulty in " \
+                f"({','.join([str(_) for _ in difficulties])}) join categories on tossups.category_id = categories.id " \
+                "WHERE (tossups.formatted_answer like '%<strong>%' or position(' ' in formatted_answer) <= 0 " \
                 "or tossups.formatted_answer similar to '[a-zA-Z]+\s<[^strong^em^u>^b>]%') "
-                "and lower(categories.name) = lower('{0}')"
-                "ORDER BY RANDOM() LIMIT {1}".format(category, number))
+
+        if category:
+            print(f"getting u {category}")
+            query += f"and lower(categories.name) = lower('{category}') "
+        query += f"ORDER BY RANDOM() LIMIT {number}"
+
+        print(query)
+
+        data = await self.conn.fetch(query)
         data = data[0]
 
         return question.Tossup(data[0], unescape(data[1]), unescape(data[2]), data[3], data[4],

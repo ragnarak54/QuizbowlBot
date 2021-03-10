@@ -83,13 +83,10 @@ def concurrency_check(func):
 
 
 @concurrency_check
-async def tossup(bot, ctx, is_bonus=False, playerlist=None, ms=False, category=None, in_tournament=False):
+async def tossup(bot, ctx, is_bonus=False, playerlist=None, category=None, in_tournament=False, difficulties=[2,3,4,5]):
     channel = ctx.channel
     correct = False
-    if not ms:
-        question_obj = await bot.db.get_tossups(category)
-    else:
-        question_obj = await bot.db.get_ms()
+    question_obj = await bot.db.get_tossups(category=category, difficulties=difficulties)
     print(f'question from {question_obj.packet}, answer {question_obj.formatted_answer}')
     neg_list = []
     print(f'theme: {question_obj.category}, power={question_obj.power}')
