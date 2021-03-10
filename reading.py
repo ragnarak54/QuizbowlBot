@@ -107,7 +107,7 @@ async def tossup(bot, ctx, is_bonus=False, playerlist=None, ms=False, category=N
             return False
         if not playerlist:
             return message.author not in neg_list and (
-                    message.content.lower() == "buzz" or message.content.lower() == "skip")
+                    message.content.lower() in ["buzz", "bz", "skip"])
         return tournament.get_player(message.author, message.guild) in playerlist and message.author not in neg_list \
                and message.content.lower() == "buzz"
 
