@@ -30,15 +30,38 @@ async def on_ready():
 
 
 @bot.event
-async def on_guild_join(guild):
-    if not guild.get_member(235834402347679744):
-        await bot.procUser.send(f"Bot invited to {guild.name}. New usercount `{len([x for x in bot.users if not x.bot])}`.")
+async def on_guild_join(guild: discord.Guild):
+    if not await bot.db.is_authorized(guild.id):
+        await bot.procUser.send(f"Bot invited to {guild.name}")
         for channel in [x for x in guild.text_channels]:
             if channel.permissions_for(guild.me).send_messages:
                 await channel.send("Please first invite my creator, ragnarak54#9413 so he can"
                                    " help set the bot up for you!")
                 break
         await guild.leave()
+
+
+@bot.command()
+@commands.is_owner()
+async def authorize(ctx, guild_id):
+    try:
+        await bot.db.authorize_server(guild_id)
+        await ctx.message.add_reaction('\U00002705')
+    except:
+        await ctx.message.add_reaction('\U0000274c')
+
+
+@bot.command()
+@commands.is_owner()
+async def unauthorize(ctx, guild_id):
+    guild = await bot.fetch_guild(guild_id)
+    try:
+        await bot.db.unauthorize_server(guild_id)
+        await guild.leave()
+        await ctx.message.add_reaction('\U00002705')
+    except Exception as e:
+        await bot.procUser.send(f"failed to leave {guild.name}: {e}")
+        await ctx.message.add_reaction('\U0000274c')
 
 
 @bot.command()
@@ -140,6 +163,16 @@ async def pyval(ctx, *, expr):
     }
     try:
         ret = eval(expr, env)
+    except Exception as e:
+        ret = e
+    await ctx.send(ret)
+
+
+@bot.command()
+@commands.is_owner()
+async def sql(ctx, *, expr):
+    try:
+        ret = await bot.db.conn.fetch(expr)
     except Exception as e:
         ret = e
     await ctx.send(ret)

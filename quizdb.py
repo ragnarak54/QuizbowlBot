@@ -71,3 +71,13 @@ class DB(commands.Cog):
 
     async def update_buzz(self, buzz_id, correct: bool, points=0):
         await self.conn.execute("update buzzes set correct = $1, points = $2 where id = $3", correct, points, buzz_id)
+
+    async def authorize_server(self, guild_id):
+        await self.conn.execute("insert into authorized_servers(server_id) values ($1)", int(guild_id))
+
+    async def unauthorize_server(self, guild_id):
+        await self.conn.execute("delete from authorized_servers where server_id=$1", int(guild_id))
+
+    async def is_authorized(self, guild_id):
+        r = await self.conn.fetchrow("select exists(select 1 from authorized_servers where server_id=$1)", int(guild_id))
+        return r[0]

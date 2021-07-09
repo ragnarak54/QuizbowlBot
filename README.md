@@ -16,7 +16,7 @@ Here's how to use all of the bot's commands
 ?tossup
 ```
 
-is the most basic command. The bot will start reading a question, and anyone in that channel can buzz at any time when they know the answer. You buzz simply by typing "buzz". Just like in quizbowl, wait to be recognized for your buzz to avoid giving a free answer to someone who buzzed in right before you! For ease of access, you can also type `?q, ?t, or ?question`
+is the most basic command. The bot will start reading a question, and anyone in that channel can buzz at any time when they know the answer. You buzz simply by typing `buzz` or `bz`. Just like in quizbowl, wait to be recognized for your buzz to avoid giving a free answer to someone who buzzed in right before you! For ease of access, you can also type `?q, ?t, or ?question`
 
 If you're studying up on a certain category, you can put it after the tossup command, or any of its shortcuts, like `?q literature` (or even `?q lit`!) to get a tossup from that category.
 
