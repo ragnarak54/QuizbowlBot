@@ -10,10 +10,8 @@ import quizdb
 import reading
 import tournament
 
-
-bot = commands.Bot(command_prefix=['!', '?'], description="Quiz bowl bot!")
 intents = discord.Intents.default()
-intents.message_content = True
+bot = commands.Bot(command_prefix=['!', '?'], description="Quiz bowl bot!", intents=intents)
 startup_extensions = ["tournament"]
 categories = ["mythology", "literature", "trash", "science", "history", "religion", "geography", "fine arts",
               "social science", "philosophy", "current events"]
